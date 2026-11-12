@@ -319,11 +319,67 @@ Details and open points: see `CLAUDE.md` → "Beobachtungen am echten Gerät".
 - Consequences in `pya16`:
   - send commands only after the first packet arrives (max. 3 s)
   - retry idempotent commands (queries, power, source, preset) once
-  - never retry toggles and steps (volume, mute, IR keys)
+  - never retry toggles and steps blindly (volume, mute, IR keys)
   - a missed keepalive is retried once; only two misses in a row mean the
     connection is dead
   - the periodic AUR/BUR block does not confirm other commands (it also
     contains `VA`, `PA`, `IN`)
+
+### Command rate: minimum interval (2026-11-12, `tools/a16_volume_probe.py`)
+
+**The A16 ignores a command that arrives less than ~1 s after the previous
+one.** Measured with two volume steps of user A at different send-to-send
+gaps:
+
+| gap | applied |
+|---|---|
+| 0.4 s | 1 of 2 |
+| 0.6 s | up 2 of 2, down 1 of 2 |
+| 0.8 s | 1 of 2 (both directions) |
+| 1.0 s | 2 of 2 |
+| 1.3 s | 2 of 2 |
+
+- An ignored **volume step is still answered**, with the *unchanged* `VA=`.
+- An ignored **mute toggle** (`32`) gets **no answer at all**.
+- The answers report the current value correctly. The earlier suspicion of
+  "stale duplicate `VA=`" was wrong: those were ignored steps.
+- This explains many of the "dropped commands" above (fast refresh).
+- `pya16` therefore keeps a **minimum send-to-send interval of 1.2 s**
+  (`min_command_interval`; 1.0 s worked, plus margin for WLAN jitter). A step
+  answered with an unchanged value is sent once more.
+
+### Lost commands and late answers in Home Assistant (2026-11-12)
+
+Running the integration in Home Assistant (WSL, same poor WLAN) with the 1.2 s
+interval:
+- some commands still got **no answer at all** (volume steps, `32`, `21`),
+  roughly one in four or five during busy minutes, then for minutes none
+- some answers arrived **3–5 s late**
+- a volume query after an unanswered step always showed the old value, so
+  those steps were really lost, not just their answers
+- whether this comes from the WLAN path or the device cannot be separated
+  from here; repeat over a wired network
+
+Consequences in `pya16` / the integration:
+- `response_timeout` default **5 s** (was 3 s)
+- an unanswered volume step is followed by a volume query (`83`/`a3`):
+  unchanged → the step is sent again; changed → it was applied
+- a volume target keeps stepping until it is reached (64 → 66 → 64 worked
+  despite three lost steps)
+- there is no query for the mute state: after an unanswered toggle the mute
+  state becomes **unknown** (`None`) instead of showing a possibly wrong value
+
+### Connecting shortly after another client disconnected
+
+- After a client disconnected (e.g. Home Assistant stopped, a capture tool
+  ended, or a bare TCP connect/close without data), the A16 often **refused
+  new connections for ~30–60 s**. Observed: connect timeouts (33 s and 55 s
+  until success), or accept and **reset within 60–80 ms**.
+- Not every time: three CLI sessions in a row 1.5 s apart all worked.
+- `pya16` reports "connected" only when the A16 is ready (first packet or
+  `ready_timeout`), so such immediate resets do not make entities flap. The
+  reconnect backoff handles the rest. The config flow error text tells the
+  user to wait about a minute.
 
 ### Speaker table check against the device (2026-11-12)
 

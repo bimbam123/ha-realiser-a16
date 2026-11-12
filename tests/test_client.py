@@ -30,6 +30,8 @@ def _client(server, **kw) -> A16Client:
         "backoff_max": 0.4,
         "command_gap": 0.0,
         "unknown_response_wait": 0.05,
+        "min_command_interval": 0.0,
+        "step_confirm_wait": 0.3,
         "refresh_on_connect": False,
     }
     opts.update(kw)
@@ -185,8 +187,7 @@ async def test_keepalive_keeps_connection(fake_a16):
     await client.start()
     try:
         await client.wait_connected(2)
-        await asyncio.sleep(0.6)
-        assert fake_a16.received.count("2e") >= 5
+        await _wait_for(lambda: fake_a16.received.count("2e") >= 5)
         assert events == [True]
     finally:
         await client.stop()
@@ -362,5 +363,133 @@ async def test_corrupted_info_block_does_not_confirm_volume(fake_a16):
         fake_a16.drop_next["30"] = 1
         with pytest.raises(A16TimeoutError):
             await client.volume_up("a")
+    finally:
+        await client.stop()
+
+
+async def test_stale_volume_duplicate_does_not_stop_stepping(fake_a16):
+    # A late, stale VA= of the previous step must not confirm the next step:
+    # the client waits until the volume really changes.
+    fake_a16.volume_answer_delay = 0.2
+    fake_a16.duplicate_volume_after = 0.1
+    client = _client(fake_a16, response_timeout=1.0)
+    await client.start()
+    try:
+        await client.wait_connected(2)
+        await _wait_for(lambda: client.state.user_a.preset is not None)
+        await client.set_volume("a", 66)  # from 64: two steps
+        assert client.state.user_a.volume == 66
+        assert fake_a16.received.count("30") == 2
+    finally:
+        await client.stop()
+
+
+async def test_step_volume_at_limit_returns_none(fake_a16):
+    fake_a16.volume["a"] = 99
+    client = _client(fake_a16, response_timeout=0.3)
+    await client.start()
+    try:
+        await client.wait_connected(2)
+        await client.send_command("83")
+        assert client.state.user_a.volume == 99
+        assert await client.step_volume("a", up=True) is None
+    finally:
+        await client.stop()
+
+
+async def test_ignored_step_is_sent_again(fake_a16):
+    # Real A16: a step that comes too soon is ignored but answered with the
+    # unchanged VA=. The client sends it once more.
+    client = _client(fake_a16)
+    await client.start()
+    try:
+        await client.wait_connected(2)
+        await _wait_for(lambda: client.state.user_a.preset is not None)
+        fake_a16.ignore_next_steps = 1
+        assert await client.step_volume("a", up=True) == 65
+        assert fake_a16.received.count("30") == 2
+        assert fake_a16.ignored == ["30"]
+    finally:
+        await client.stop()
+
+
+async def test_min_command_interval_avoids_ignored_commands(fake_a16):
+    fake_a16.min_interval = 0.15
+    client = _client(fake_a16, min_command_interval=0.2)
+    await client.start()
+    try:
+        await client.wait_connected(2)
+        await _wait_for(lambda: client.state.user_a.preset is not None)
+        await client.set_volume("a", 67)
+        await client.toggle_mute("a")
+        await client.toggle_mute("a")
+        assert client.state.user_a.volume == 67
+        assert fake_a16.ignored == []
+        assert fake_a16.received.count("30") == 3
+    finally:
+        await client.stop()
+
+
+async def test_without_interval_the_fake_ignores_fast_commands(fake_a16):
+    # Sanity check of the emulation: no interval -> commands get ignored.
+    fake_a16.min_interval = 0.15
+    client = _client(fake_a16, min_command_interval=0.0, response_timeout=0.3)
+    await client.start()
+    try:
+        await client.wait_connected(2)
+        await _wait_for(lambda: client.state.user_a.preset is not None)
+        await client.send_command("2e")
+        with pytest.raises(A16TimeoutError):
+            await client.send_command("64", retries=0)
+        assert "64" in fake_a16.ignored
+    finally:
+        await client.stop()
+
+
+async def test_immediate_resets_do_not_flap_connected(fake_a16):
+    # Real A16 (~1 min after another client disconnected): accepts TCP and
+    # resets it within ~70 ms. That must not be reported as connected.
+    fake_a16.reset_first_connections = 2
+    events = []
+    client = _client(fake_a16)
+    client.add_connection_listener(events.append)
+    await client.start()
+    try:
+        await client.wait_connected(3)
+        await asyncio.sleep(0.3)
+        assert fake_a16.connections_total == 3
+        assert events == [True]
+    finally:
+        await client.stop()
+
+
+async def test_lost_step_is_detected_by_query_and_sent_again(fake_a16):
+    # The step never reached the device: the volume query shows no change,
+    # so sending it again is safe.
+    client = _client(fake_a16, response_timeout=0.3)
+    await client.start()
+    try:
+        await client.wait_connected(2)
+        await _wait_for(lambda: client.state.user_a.preset is not None)
+        fake_a16.drop_next["30"] = 1
+        assert await client.step_volume("a", up=True) == 65
+        sent = [c for c in fake_a16.received if c in ("30", "83")]
+        assert sent == ["30", "83", "30"]
+    finally:
+        await client.stop()
+
+
+async def test_lost_answer_of_applied_step_is_not_sent_again(fake_a16):
+    # The step was applied but its answer got lost: the query shows the new
+    # volume, so the step must not be sent a second time.
+    client = _client(fake_a16, response_timeout=0.3)
+    await client.start()
+    try:
+        await client.wait_connected(2)
+        await _wait_for(lambda: client.state.user_a.preset is not None)
+        fake_a16.lose_answer_next["30"] = 1
+        assert await client.step_volume("a", up=True) == 65
+        assert [c for c in fake_a16.received if c in ("30", "83")] == ["30", "83"]
+        assert fake_a16.volume["a"] == 65
     finally:
         await client.stop()

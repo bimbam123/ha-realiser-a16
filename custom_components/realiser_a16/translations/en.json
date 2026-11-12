@@ -15,7 +15,7 @@
       }
     },
     "error": {
-      "cannot_connect": "Failed to connect. Check the IP address, the port and that the TCP command server is enabled. The A16 accepts only one controller at a time: close other control apps (e.g. Centro Control) and try again.",
+      "cannot_connect": "Failed to connect. Check the IP address, the port and that the TCP command server is enabled. The A16 accepts only one controller at a time: close other control apps (e.g. Centro Control) and try again. After closing another app or restarting, the A16 may refuse new connections for about a minute.",
       "unknown": "Unexpected error"
     },
     "abort": {
@@ -63,7 +63,7 @@
   },
   "exceptions": {
     "not_reachable": {
-      "message": "Cannot connect to the Realiser A16 at {host}. Another control app may hold the only connection the A16 accepts."
+      "message": "Cannot connect to the Realiser A16 at {host}. Another control app may hold the only connection the A16 accepts. After closing another app or restarting, the A16 may refuse new connections for about a minute."
     },
     "command_failed": {
       "message": "The Realiser A16 did not execute the command: {error}"

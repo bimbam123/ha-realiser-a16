@@ -15,7 +15,7 @@
       }
     },
     "error": {
-      "cannot_connect": "Verbindung fehlgeschlagen. Prüfe IP-Adresse, Port und ob der TCP-Command-Server aktiviert ist. Der A16 nimmt nur eine Steuerung gleichzeitig an: Schließe andere Steuer-Apps (z. B. Centro Control) und versuche es erneut.",
+      "cannot_connect": "Verbindung fehlgeschlagen. Prüfe IP-Adresse, Port und ob der TCP-Command-Server aktiviert ist. Der A16 nimmt nur eine Steuerung gleichzeitig an: Schließe andere Steuer-Apps (z. B. Centro Control) und versuche es erneut. Nach dem Schließen einer anderen App oder einem Neustart nimmt der A16 bis zu etwa eine Minute lang keine neue Verbindung an.",
       "unknown": "Unerwarteter Fehler"
     },
     "abort": {
@@ -63,7 +63,7 @@
   },
   "exceptions": {
     "not_reachable": {
-      "message": "Keine Verbindung zum Realiser A16 unter {host}. Möglicherweise belegt eine andere Steuer-App die einzige Verbindung, die der A16 annimmt."
+      "message": "Keine Verbindung zum Realiser A16 unter {host}. Möglicherweise belegt eine andere Steuer-App die einzige Verbindung, die der A16 annimmt. Nach dem Schließen einer anderen App oder einem Neustart nimmt der A16 bis zu etwa eine Minute lang keine neue Verbindung an."
     },
     "command_failed": {
       "message": "Der Realiser A16 hat den Befehl nicht ausgeführt: {error}"

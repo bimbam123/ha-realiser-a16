@@ -16,7 +16,11 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.realiser_a16.api import A16DeviceInfo
 from custom_components.realiser_a16.const import DOMAIN
-from custom_components.realiser_a16.pya16 import A16ConnectionError, A16State
+from custom_components.realiser_a16.pya16 import (
+    A16ConnectionError,
+    A16State,
+    A16TimeoutError,
+)
 from custom_components.realiser_a16.pya16.parser import parse_packet
 from custom_components.realiser_a16.pya16.protocol import SOURCES, preset_command
 
@@ -45,6 +49,7 @@ class MockA16Client:
         self.sent: list[str] = []
         self.stopped = False
         self.fail_connect = MockA16Client.next_fail_connect
+        self.timeout_codes: set[str] = set()
         self.device_muted = False  # actual mute state of the "device"
         self._listeners: list = []
         self._conn_listeners: list = []
@@ -92,6 +97,8 @@ class MockA16Client:
     async def send_command(self, code: str, **kwargs) -> dict:
         await asyncio.sleep(0)
         self.sent.append(code)
+        if code in self.timeout_codes:
+            raise A16TimeoutError(f"No answer to command {code}")
         a = self.state.user_a
         if code == "2c":
             self.push(b"PWR=BOOT")
@@ -132,6 +139,12 @@ class MockA16Client:
 
     async def volume_down(self, user: str) -> None:
         await self.send_command("31" if user == "a" else "34")
+
+    async def step_volume(self, user: str, up: bool) -> int | None:
+        before = self.state.user(user).volume
+        await (self.volume_up if up else self.volume_down)(user)
+        after = self.state.user(user).volume
+        return after if after != before else None
 
 
 @pytest.fixture(autouse=True)

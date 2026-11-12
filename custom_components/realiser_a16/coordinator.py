@@ -13,7 +13,7 @@ from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import CONNECT_TIMEOUT, DOMAIN, RELEVANT_PATHS
-from .pya16 import A16Client, A16Error, A16State
+from .pya16 import A16Client, A16Error, A16State, A16TimeoutError
 from .pya16.protocol import MUTE_TOGGLE, VOLUME_MAX, VOLUME_MIN, User
 
 if TYPE_CHECKING:
@@ -174,11 +174,7 @@ class A16Coordinator(DataUpdateCoordinator[A16State]):
                         break
                 if current == target:
                     break
-                if target > current:
-                    await self.client.volume_up(user)
-                else:
-                    await self.client.volume_down(user)
-                if us.volume == current:
+                if await self.client.step_volume(user, up=target > current) is None:
                     _LOGGER.warning(
                         "Volume of user %s did not change (stays %s)", user, current
                     )
@@ -187,6 +183,29 @@ class A16Coordinator(DataUpdateCoordinator[A16State]):
             _LOGGER.warning("Setting volume of user %s failed: %s", user, err)
         finally:
             self._volume_target.pop(user, None)
+
+    async def _toggle_mute(self, user: User) -> None:
+        """Toggle mute. Without an answer the state becomes unknown.
+
+        There is no query command for the mute state, so after a lost answer
+        it is unknown whether the toggle was applied.
+        """
+        try:
+            await self.client.send_command(MUTE_TOGGLE[user])
+        except A16TimeoutError as err:
+            self.client.state.user(user).muted = None
+            self.async_update_listeners()
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="command_failed",
+                translation_placeholders={"error": str(err)},
+            ) from err
+        except A16Error as err:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="command_failed",
+                translation_placeholders={"error": str(err)},
+            ) from err
 
     async def async_set_mute(self, user: User, mute: bool) -> None:
         """Mute/unmute with state check.
@@ -198,9 +217,9 @@ class A16Coordinator(DataUpdateCoordinator[A16State]):
         us = self.client.state.user(user)
         if us.muted is mute:
             return
-        await self.async_command(self.client.send_command(MUTE_TOGGLE[user]))
+        await self._toggle_mute(user)
         if us.muted is not mute:
-            await self.async_command(self.client.send_command(MUTE_TOGGLE[user]))
+            await self._toggle_mute(user)
         if us.muted is not mute:
             raise HomeAssistantError(
                 translation_domain=DOMAIN, translation_key="mute_failed"

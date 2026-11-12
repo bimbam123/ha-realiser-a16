@@ -52,6 +52,9 @@ def packets_with(chunks: list[bytes], key: bytes) -> bytes:
     raise LookupError(key)
 
 
+TERM = bytes([0, 13])  # packet terminator (NUL, CR)
+
+
 class FakeA16:
     """Minimal A16 emulation built from the reference capture.
 
@@ -67,6 +70,7 @@ class FakeA16:
         chunks = load_chunks("run2_reference.jsonl")
         self.push_interval = push_interval
         self.volume = {"a": 64, "b": 65}
+        self.muted = {"a": False, "b": False}
         self.responses: dict[str, bytes] = {
             "2e": b"PWR=ON\x00\r",
             "2c": b"PWR=ON\x00\r",
@@ -99,6 +103,18 @@ class FakeA16:
         self.booting = False
         # Like the real device: commands before the first push are ignored.
         self.ignore_before_first_push = True
+        # Volume steps: answer delay, and an optional stale duplicate of the
+        # answer sent later (seen on the real A16 after vol+/vol-).
+        self.volume_answer_delay = 0.01
+        self.duplicate_volume_after: float | None = None
+        # Like the real A16: a command arriving less than min_interval after
+        # the previous one is ignored. An ignored volume step is still
+        # answered with the unchanged VA=, other commands get no answer.
+        self.min_interval: float | None = None
+        self.ignore_next_steps = 0
+        self.ignored: list[str] = []
+        self.reset_first_connections = 0
+        self.lose_answer_next: dict[str, int] = {}
         self.ignored_early: list[str] = []
         self._server: asyncio.Server | None = None
         self.port = 0
@@ -125,10 +141,21 @@ class FakeA16:
             elif code == "34":
                 self.volume["b"] = max(27, self.volume["b"] - 1)
             return f"VB={self.volume['b']}\x00\r".encode()
+        if code in ("32", "35"):
+            user = "a" if code == "32" else "b"
+            self.muted[user] = not self.muted[user]
+            state = "MUTE" if self.muted[user] else "OFF"
+            return f"MUTE{user.upper()}={state}".encode() + TERM
         return self.responses.get(code)
 
     async def _handle(self, reader, writer) -> None:
         self.connections_total += 1
+        if self.reset_first_connections > 0:
+            # Real A16 shortly after another client left: accept, then reset.
+            self.reset_first_connections -= 1
+            await asyncio.sleep(0.05)
+            writer.transport.abort()
+            return
         if self.active:
             self.rejected += 1
             writer.close()
@@ -142,10 +169,17 @@ class FakeA16:
             while True:
                 await asyncio.sleep(self.push_interval)
                 if not self.silent:
-                    writer.write(self.push_packet)
+                    # like the real device: the push carries the current volume
+                    writer.write(
+                        self.push_packet.replace(
+                            b"VA=64", f"VA={self.volume['a']}".encode()
+                        )
+                    )
                     pushed.set()
 
         push_task = asyncio.create_task(pusher())
+        timers: list[asyncio.TimerHandle] = []
+        last_cmd: float | None = None
         try:
             while True:
                 line = await reader.readline()
@@ -155,6 +189,23 @@ class FakeA16:
                 self.received.append(code)
                 if self.ignore_before_first_push and not pushed.is_set():
                     self.ignored_early.append(code)
+                    continue
+                now = asyncio.get_running_loop().time()
+                too_soon = (
+                    self.min_interval is not None
+                    and last_cmd is not None
+                    and now - last_cmd < self.min_interval
+                )
+                last_cmd = now
+                is_step = code in ("30", "31", "33", "34")
+                if too_soon or (is_step and self.ignore_next_steps > 0):
+                    if not too_soon:
+                        self.ignore_next_steps -= 1
+                    self.ignored.append(code)
+                    if is_step:
+                        user = "a" if code in ("30", "31") else "b"
+                        key = "VA" if user == "a" else "VB"
+                        writer.write(f"{key}={self.volume[user]}\x00\r".encode())
                     continue
                 if self.drop_next.get(code, 0) > 0:
                     self.drop_next[code] -= 1
@@ -173,14 +224,29 @@ class FakeA16:
                     break  # closes the connection like the real reset
                 if code == "2d":
                     self.responses["2e"] = b"PWR=STANDBY\x00\r"
-                await asyncio.sleep(0.01)
-                if (answer := self._answer(code)) is not None:
+                is_step = code in ("30", "31", "33", "34")
+                await asyncio.sleep(self.volume_answer_delay if is_step else 0.01)
+                answer = self._answer(code)  # applies the command
+                if self.lose_answer_next.get(code, 0) > 0:
+                    # executed, but the answer gets lost on the way back
+                    self.lose_answer_next[code] -= 1
+                    continue
+                if answer is not None:
                     writer.write(answer)
+                    if is_step and self.duplicate_volume_after is not None:
+                        loop = asyncio.get_running_loop()
+                        timers.append(
+                            loop.call_later(
+                                self.duplicate_volume_after, writer.write, answer
+                            )
+                        )
                     await writer.drain()
         except (ConnectionError, OSError):
             pass
         finally:
             push_task.cancel()
+            for timer in timers:
+                timer.cancel()
             self.active -= 1
             writer.close()
 

@@ -94,7 +94,8 @@ class A16Client:
         port: int = DEFAULT_PORT,
         *,
         keepalive_interval: float = 20.0,
-        response_timeout: float = 3.0,
+        # Answers usually take 0.5-1.5 s; over a poor WLAN up to ~5 s were seen.
+        response_timeout: float = 5.0,
         connect_timeout: float = 5.0,
         command_gap: float = 0.05,
         unknown_response_wait: float = 0.3,
@@ -105,7 +106,15 @@ class A16Client:
         ready_timeout: float = 3.0,
         command_retries: int = 1,
         boot_timeout: float = 120.0,
+        min_command_interval: float = 1.2,
+        step_confirm_wait: float = 1.0,
     ) -> None:
+        # The A16 ignores commands sent less than ~1 s after the previous one
+        # (measured on FW 2.17: 0.4-0.8 s ignored, 1.0/1.3 s applied); the
+        # default adds a margin for network jitter.
+        self.min_command_interval = min_command_interval
+        self.step_confirm_wait = step_confirm_wait
+        self._last_send: float | None = None
         self.boot_timeout = boot_timeout
         self._boot_since: float | None = None
         self.command_retries = command_retries
@@ -126,6 +135,7 @@ class A16Client:
         self._listeners: list[StateListener] = []
         self._conn_listeners: list[ConnectionListener] = []
         self._run_task: asyncio.Task | None = None
+        self._refresh_task: asyncio.Task | None = None
         self._queue: asyncio.Queue[_Request] | None = None
         self._waiter: _Waiter | None = None
         self._connected = asyncio.Event()
@@ -278,12 +288,66 @@ class A16Client:
             current = us.volume
             if current == target:
                 return
-            await (self.volume_up if target > current else self.volume_down)(user)
-            if us.volume == current:
+            if await self.step_volume(user, up=target > current) is None:
                 _LOGGER.warning(
                     "Volume %s did not change, stopping at %s", user, current
                 )
                 return
+
+    async def step_volume(self, user: User, up: bool) -> int | None:
+        """Send one volume step and make sure it was applied.
+
+        Returns the new volume, or None if it did not change (e.g. at the
+        limit 27/99).
+
+        The A16 ignores a step that comes too soon after the previous command
+        but still answers it with the unchanged VA= (seen on FW 2.17). Such
+        an ignored step is sent once more; that is safe because the answer
+        shows it was not applied. A short wait also covers a late answer.
+
+        If a step gets no answer at all, the current volume is queried (83/a3,
+        an idempotent query). Unchanged means the step was lost and can be
+        sent again; changed means it was applied.
+        """
+        us = self.state.user(user)
+        before = us.volume
+        at_limit = before is not None and (
+            (up and before >= VOLUME_MAX) or (not up and before <= VOLUME_MIN)
+        )
+        for attempt in range(2):
+            try:
+                await (self.volume_up if up else self.volume_down)(user)
+            except A16TimeoutError:
+                _LOGGER.debug("Volume step %s not answered, querying volume", user)
+                await self.send_command(VOLUME_QUERY[user])
+            if await self._wait_volume_change(user, before, self.step_confirm_wait):
+                return us.volume
+            if at_limit or attempt == 1:
+                return None
+            _LOGGER.debug("Volume step %s ignored by the A16, sending again", user)
+        return None
+
+    async def _wait_volume_change(
+        self, user: User, before: int | None, timeout: float
+    ) -> bool:
+        us = self.state.user(user)
+        if us.volume is not None and us.volume != before:
+            return True
+        changed = asyncio.Event()
+
+        def _on_change(state: A16State, paths: set[str]) -> None:
+            if f"user_{user}.volume" in paths and us.volume != before:
+                changed.set()
+
+        remove = self.add_listener(_on_change)
+        try:
+            async with asyncio.timeout(timeout):
+                await changed.wait()
+            return True
+        except TimeoutError:
+            return False
+        finally:
+            remove()
 
     async def press_key(self, key: str) -> None:
         """Send an IR remote key by name (see protocol.IR_KEYS)."""
@@ -328,33 +392,37 @@ class A16Client:
         parser = StreamParser()
         healthy = asyncio.Event()
         self._queue = asyncio.Queue()
-        self._set_connected(True)
+        self._refresh_task = None
+        # "connected" is reported by the worker once the A16 is ready (first
+        # packet or ready_timeout). During the ~1 min after another client
+        # disconnected, the A16 may accept TCP and reset it within ~70 ms;
+        # such connections must not show up as connected.
         tasks = [
             asyncio.create_task(self._reader(reader, parser, healthy)),
             asyncio.create_task(self._worker(writer, healthy)),
             asyncio.create_task(self._keepalive()),
         ]
-        refresh_task = (
-            asyncio.create_task(self.refresh()) if self.refresh_on_connect else None
-        )
         try:
             done, _ = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
             for task in done:
                 if (exc := task.exception()) is not None:
                     _LOGGER.debug("A16 connection ended: %r", exc)
         finally:
+            refresh_task = self._refresh_task
             for task in [*tasks, *([refresh_task] if refresh_task else [])]:
                 task.cancel()
             await asyncio.gather(*tasks, return_exceptions=True)
             if refresh_task:
                 await asyncio.gather(refresh_task, return_exceptions=True)
+            self._refresh_task = None
             self._fail_pending(A16ConnectionError("Connection to the A16 lost"))
             self._queue = None
             writer.close()
             with contextlib.suppress(Exception):
                 await writer.wait_closed()
+            was_connected = self.connected
             self._set_connected(False)
-        return healthy.is_set()
+        return healthy.is_set() or was_connected
 
     async def _reader(
         self, reader: asyncio.StreamReader, parser: StreamParser, healthy: asyncio.Event
@@ -378,13 +446,24 @@ class A16Client:
         with contextlib.suppress(TimeoutError):
             async with asyncio.timeout(self.ready_timeout):
                 await ready.wait()
+        self._set_connected(True)
+        if self.refresh_on_connect:
+            self._refresh_task = asyncio.create_task(self.refresh())
         while True:
             req = await self._queue.get()
             if req.future.done():  # caller gave up
                 continue
+            if self._last_send is not None:
+                loop_time = asyncio.get_running_loop().time()
+                wait = self._last_send + self.min_command_interval - loop_time
+                if wait > 0:
+                    await asyncio.sleep(wait)
+            if req.future.done():  # caller gave up while waiting
+                continue
             waiter = _Waiter(req.expect, req.future) if req.expect else None
             self._waiter = waiter
             try:
+                self._last_send = asyncio.get_running_loop().time()
                 writer.write(encode_command(req.code))
                 await writer.drain()
             except OSError as err:
@@ -417,6 +496,8 @@ class A16Client:
         # (1 of 18 in a 6 min test), so one miss is retried immediately.
         while True:
             await asyncio.sleep(self.keepalive_interval)
+            if not self.connected:  # still waiting for the A16 to be ready
+                continue
             for attempt in range(self.keepalive_retries + 1):
                 try:
                     await self.send_command(

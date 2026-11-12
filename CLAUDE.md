@@ -38,8 +38,14 @@ einzelne Seiten der PDF lesen (`pages`).
    tote Verbindung. (Der A16 verschluckt gelegentlich einzelne Befehle, siehe
    `docs/protocol.md` → „Dropped commands“.)
 4a. Erst senden, wenn nach dem Verbinden das erste Paket angekommen ist.
-   Idempotente Befehle einmal wiederholen, Toggles und Schritte (Lautstärke,
-   Mute, IR-Tasten) **nie** automatisch wiederholen.
+   Zwischen zwei Befehlen **mindestens 1,2 s** (der A16 ignoriert Befehle,
+   die schneller als ~1 s nach dem vorigen kommen). Idempotente Befehle
+   einmal wiederholen. Toggles und Schritte (Lautstärke, Mute, IR-Tasten)
+   **nie blind** wiederholen: Bei Lautstärke erst per `83`/`a3` prüfen, ob
+   der Schritt angekommen ist. Mute ist danach unbekannt (keine Abfrage).
+4b. Nach dem Trennen eines Clients nimmt der A16 oft ~30–60 s keine neue
+   Verbindung an oder resettet sie sofort. Keine "leeren" TCP-Tests
+   (verbinden und ohne Befehl trennen) gegen das Gerät machen.
 5. Befehle werden über eine Queue **nacheinander** gesendet, mit kurzem Abstand
    und ohne Flooding.
 6. Wertebereiche einhalten: Lautstärke 27–99, Presets 1–16, Speaker-ID 1–50,
@@ -140,6 +146,14 @@ bedient. Lauf 2 (`…-133219-…`) lief ohne Bedienung und ist die Referenz.
 - Für die Device-Registry `async_get_device_by_identifier(identifier,
   entry_id)` nutzen. `async_get_device` ist in HA 2026.10 veraltet und
   löst in Tests einen Fehler aus.
+- Echte HA-Testinstanz (lokal, nicht im Repo): HA 2026.11 in WSL unter
+  `~/.venvs/ha-run`, Konfiguration `~/ha-a16-config/` (Integration per
+  Symlink, Onboarding/Token über `ha_api.py`, Szenario `a16_check.py`).
+  Start: `wsl -d Ubuntu -- bash -lc '~/.venvs/ha-run/bin/hass -c
+  ~/ha-a16-config'`. Solange sie läuft, hält sie die einzige
+  A16-Verbindung, danach also wieder beenden. Kein `http:`-Block in der
+  YAML: HA 2026.11 startet sonst nach 5 min neu, weil die Konfiguration
+  nicht bestätigt wurde.
 - Am Gerät ausprobieren: `python tools/a16_cli.py <host> state | monitor |
   send <code> | …`. Dabei bitte keine andere Steuer-App verbinden, denn der
   A16 nimmt nur einen Client an.

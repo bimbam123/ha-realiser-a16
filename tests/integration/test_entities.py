@@ -89,6 +89,19 @@ async def test_mute_with_unknown_state_toggles_until_confirmed(hass, setup_integ
     assert hass.states.get(PLAYER).attributes["is_volume_muted"] is False
 
 
+async def test_mute_without_answer_becomes_unknown(hass, setup_integration):
+    from homeassistant.exceptions import HomeAssistantError
+
+    client = setup_integration
+    await _call(hass, "media_player", "volume_mute", PLAYER, is_volume_muted=True)
+    assert hass.states.get(PLAYER).attributes["is_volume_muted"] is True
+    client.timeout_codes.add("32")
+    with pytest.raises(HomeAssistantError):
+        await _call(hass, "media_player", "volume_mute", PLAYER, is_volume_muted=False)
+    # there is no query command for mute: the state is unknown now
+    assert "is_volume_muted" not in hass.states.get(PLAYER).attributes
+
+
 async def test_select_source(hass, setup_integration):
     client = setup_integration
     await _call(hass, "media_player", "select_source", PLAYER, source="HDMI 2")
