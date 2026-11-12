@@ -3,7 +3,7 @@
 Unofficial integration, not affiliated with Smyth Research. Versions are
 plans, not promises.
 
-## v0.2 – first integration (current)
+## v0.2.0 – first integration (released)
 
 - Push coordinator, exactly one TCP connection per device (`pya16`)
 - Config flow (host, port, connection test, serial as unique ID), port option
@@ -13,6 +13,18 @@ plans, not promises.
 - Sensors: mode (SVS/AV/MIX), head tracking mode, firmware
 - Entities unavailable while disconnected; `PWR=BOOT` shown as on with
   attribute `power_state: boot`
+
+## v0.2.1 – feedback from the first installation
+
+- Power and source on a device-level media player ("Realiser A16"); the
+  user players only have volume and mute (power applies to the whole device)
+- User B: media player, volume number and preset select; room/subject of B
+  are queried with `a0` after a preset change (B is not pushed)
+- Volume numbers 27–99 per user (the media player slider works in %)
+- More robust volume stepping: 1.5 s between steps, up to five ignored steps
+  per target
+- "Reconfigure" for IP address and port (replaces the port option)
+- Diagnostics download with connection statistics
 
 ## v0.3 – Realiser panel and dashboard cards
 
@@ -71,8 +83,6 @@ METERS, ABOUT).
 
 ### Prerequisites from v0.2 / open questions
 
-- **User B:** a media player plus a preset select for B. B is needed for the
-  control page anyway.
 - **Mute B, tri-level, solo/mute speakers:** query and toggle semantics still
   need to be tested on the device. `Ann`/`Mnn` come only from `af` and the
   speaker select commands.

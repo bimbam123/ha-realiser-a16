@@ -12,6 +12,18 @@
           "host": "Fixed IP address configured on the A16.",
           "port": "TCP command port configured on the A16 (default 4101)."
         }
+      },
+      "reconfigure": {
+        "title": "Change connection",
+        "description": "Change the IP address or TCP command port of the A16. A new IP address is tested; it must belong to the same A16. The integration reloads after saving.",
+        "data": {
+          "host": "Host",
+          "port": "Port"
+        },
+        "data_description": {
+          "host": "Fixed IP address configured on the A16.",
+          "port": "TCP command port configured on the A16 (default 4101)."
+        }
       }
     },
     "error": {
@@ -19,29 +31,34 @@
       "unknown": "Unexpected error"
     },
     "abort": {
-      "already_configured": "This A16 is already configured."
-    }
-  },
-  "options": {
-    "step": {
-      "init": {
-        "title": "Realiser A16 options",
-        "description": "Change the TCP command port. It must match the port set on the A16. The integration reloads after saving.",
-        "data": {
-          "port": "Port"
-        }
-      }
+      "already_configured": "This A16 is already configured.",
+      "reconfigure_successful": "The connection settings were changed.",
+      "wrong_device": "A different A16 answers at this address. To add it, set it up as a new device."
     }
   },
   "entity": {
     "media_player": {
       "user_a": {
         "name": "User A"
+      },
+      "user_b": {
+        "name": "User B"
+      }
+    },
+    "number": {
+      "volume_a": {
+        "name": "Volume A"
+      },
+      "volume_b": {
+        "name": "Volume B"
       }
     },
     "select": {
       "preset_a": {
         "name": "Preset A"
+      },
+      "preset_b": {
+        "name": "Preset B"
       }
     },
     "sensor": {

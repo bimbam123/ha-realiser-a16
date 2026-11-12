@@ -6,16 +6,10 @@ import logging
 from typing import Any
 
 import voluptuous as vol
-from homeassistant.config_entries import (
-    ConfigEntry,
-    ConfigFlow,
-    ConfigFlowResult,
-    OptionsFlowWithReload,
-)
+from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_HOST, CONF_PORT
-from homeassistant.core import callback
 
-from .api import A16ConnectionError, async_get_device_info
+from .api import A16ConnectionError, A16DeviceInfo, async_get_device_info
 from .const import CONNECT_TIMEOUT, DEFAULT_PORT, DOMAIN, MAX_PORT, MIN_PORT
 
 _LOGGER = logging.getLogger(__name__)
@@ -35,10 +29,19 @@ class RealiserA16ConfigFlow(ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
 
-    @staticmethod
-    @callback
-    def async_get_options_flow(config_entry: ConfigEntry) -> RealiserA16OptionsFlow:
-        return RealiserA16OptionsFlow()
+    async def _async_test(
+        self, user_input: dict[str, Any], errors: dict[str, str]
+    ) -> A16DeviceInfo | None:
+        try:
+            return await async_get_device_info(
+                user_input[CONF_HOST], user_input[CONF_PORT], CONNECT_TIMEOUT
+            )
+        except A16ConnectionError:
+            errors["base"] = "cannot_connect"
+        except Exception:
+            _LOGGER.exception("Unexpected error while connecting to the A16")
+            errors["base"] = "unknown"
+        return None
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -50,16 +53,7 @@ class RealiserA16ConfigFlow(ConfigFlow, domain=DOMAIN):
             # Abort before connecting: the A16 accepts only one client, so a
             # test connection to an already configured device would fail.
             self._async_abort_entries_match({CONF_HOST: user_input[CONF_HOST]})
-            try:
-                info = await async_get_device_info(
-                    user_input[CONF_HOST], user_input[CONF_PORT], CONNECT_TIMEOUT
-                )
-            except A16ConnectionError:
-                errors["base"] = "cannot_connect"
-            except Exception:
-                _LOGGER.exception("Unexpected error while connecting to the A16")
-                errors["base"] = "unknown"
-            else:
+            if info := await self._async_test(user_input, errors):
                 await self.async_set_unique_id(info.serial)
                 self._abort_if_unique_id_configured(updates=user_input)
                 return self.async_create_entry(
@@ -74,25 +68,37 @@ class RealiserA16ConfigFlow(ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
-
-class RealiserA16OptionsFlow(OptionsFlowWithReload):
-    """Change the TCP port.
-
-    No connection test here: the running integration holds the only
-    connection the A16 accepts. A wrong port makes the entry retry its setup.
-    """
-
-    async def async_step_init(
+    async def async_step_reconfigure(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
+        """Change host and/or port of an existing entry.
+
+        A new host is tested and must answer with the same serial number. A
+        port-only change is not tested: the running integration holds the only
+        connection the A16 accepts. A wrong port makes the entry retry setup.
+        """
+        entry = self._get_reconfigure_entry()
+        current = {
+            CONF_HOST: entry.data[CONF_HOST],
+            # v0.2.0 stored a changed port in the options
+            CONF_PORT: entry.options.get(CONF_PORT, entry.data[CONF_PORT]),
+        }
+        errors: dict[str, str] = {}
+
         if user_input is not None:
-            return self.async_create_entry(data=user_input)
-        current = self.config_entry.options.get(
-            CONF_PORT, self.config_entry.data[CONF_PORT]
-        )
+            if user_input[CONF_HOST] != current[CONF_HOST]:
+                if info := await self._async_test(user_input, errors):
+                    await self.async_set_unique_id(info.serial)
+                    self._abort_if_unique_id_mismatch(reason="wrong_device")
+            if not errors:
+                return self.async_update_reload_and_abort(
+                    entry, data_updates=user_input, options={}
+                )
+
         return self.async_show_form(
-            step_id="init",
-            data_schema=vol.Schema(
-                {vol.Required(CONF_PORT, default=current): PORT_VALIDATOR}
+            step_id="reconfigure",
+            data_schema=self.add_suggested_values_to_schema(
+                STEP_USER_DATA_SCHEMA, user_input or current
             ),
+            errors=errors,
         )

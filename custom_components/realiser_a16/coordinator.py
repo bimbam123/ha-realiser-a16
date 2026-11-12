@@ -12,9 +12,22 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-from .const import CONNECT_TIMEOUT, DOMAIN, RELEVANT_PATHS
+from .const import (
+    CONNECT_TIMEOUT,
+    DOMAIN,
+    RELEVANT_PATHS,
+    USER_B_INFO_DELAY,
+    VOLUME_MAX_FAILED_STEPS,
+)
 from .pya16 import A16Client, A16Error, A16State, A16TimeoutError
-from .pya16.protocol import MUTE_TOGGLE, VOLUME_MAX, VOLUME_MIN, User
+from .pya16.protocol import (
+    CMD_USER_B_INFO,
+    MUTE_TOGGLE,
+    VOLUME_MAX,
+    VOLUME_MIN,
+    VOLUME_QUERY,
+    User,
+)
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
@@ -50,6 +63,7 @@ class A16Coordinator(DataUpdateCoordinator[A16State]):
         self._volume_target: dict[str, int] = {}
         self._volume_tasks: dict[str, asyncio.Task] = {}
         self._unsubs: list = []
+        self._user_b_info_task: asyncio.Task | None = None
 
     # --- lifecycle --------------------------------------------------------------
 
@@ -71,7 +85,25 @@ class A16Coordinator(DataUpdateCoordinator[A16State]):
                 translation_placeholders={"host": self.client.host},
             ) from err
 
+    @callback
+    def _schedule_user_b_info(self) -> None:
+        if self._user_b_info_task is not None and not self._user_b_info_task.done():
+            return
+
+        async def _query() -> None:
+            await asyncio.sleep(USER_B_INFO_DELAY)
+            try:
+                await self.client.send_command(CMD_USER_B_INFO)
+            except A16Error as err:
+                _LOGGER.debug("Querying user B info failed: %s", err)
+
+        self._user_b_info_task = self.config_entry.async_create_background_task(
+            self.hass, _query(), f"{DOMAIN} user B info"
+        )
+
     async def async_stop(self) -> None:
+        if self._user_b_info_task is not None:
+            self._user_b_info_task.cancel()
         for task in self._volume_tasks.values():
             task.cancel()
         self._volume_tasks.clear()
@@ -89,6 +121,14 @@ class A16Coordinator(DataUpdateCoordinator[A16State]):
     def _on_state(self, state: A16State, changed: set[str]) -> None:
         if {"user_a.preset", "user_a.room", "user_a.subject"} & changed:
             self._learn_preset_name("a", state)
+        if {"user_b.preset", "user_b.room", "user_b.subject"} & changed:
+            self._learn_preset_name("b", state)
+        if "user_b.preset" in changed and not (
+            {"user_b.room", "user_b.subject"} & changed
+        ):
+            # A preset change of B is answered with PB= only, and the A16
+            # pushes only the user A block: fetch room/subject of B.
+            self._schedule_user_b_info()
         if "firmware.a16" in changed:
             self._update_device_firmware(state.firmware.a16)
         if changed & RELEVANT_PATHS:
@@ -164,21 +204,32 @@ class A16Coordinator(DataUpdateCoordinator[A16State]):
 
     async def _volume_worker(self, user: User) -> None:
         us = self.client.state.user(user)
+        failed = 0
         try:
             while (target := self._volume_target.get(user)) is not None:
                 current = us.volume
                 if current is None:
-                    await self.client.send_command("83" if user == "a" else "a3")
+                    await self.client.send_command(VOLUME_QUERY[user])
                     current = us.volume
                     if current is None:
                         break
                 if current == target:
                     break
                 if await self.client.step_volume(user, up=target > current) is None:
-                    _LOGGER.warning(
-                        "Volume of user %s did not change (stays %s)", user, current
-                    )
-                    break
+                    # The A16 sometimes ignores steps several times in a row;
+                    # step_volume never applies a step twice, so keep trying.
+                    failed += 1
+                    if failed >= VOLUME_MAX_FAILED_STEPS or current in (
+                        VOLUME_MIN,
+                        VOLUME_MAX,
+                    ):
+                        _LOGGER.warning(
+                            "Volume of user %s stays at %s (target %s)",
+                            user,
+                            current,
+                            target,
+                        )
+                        break
         except A16Error as err:
             _LOGGER.warning("Setting volume of user %s failed: %s", user, err)
         finally:

@@ -8,7 +8,7 @@ from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import A16ConfigEntry
-from .const import DOMAIN
+from .const import DOMAIN, USERS
 from .entity import A16Entity
 from .pya16.protocol import PRESET_MAX, PRESET_MIN
 
@@ -20,7 +20,7 @@ async def async_setup_entry(
     entry: A16ConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    async_add_entities([A16PresetSelect(entry.runtime_data, "a")])
+    async_add_entities(A16PresetSelect(entry.runtime_data, user) for user in USERS)
 
 
 class A16PresetSelect(A16Entity, SelectEntity):

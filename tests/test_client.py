@@ -31,6 +31,7 @@ def _client(server, **kw) -> A16Client:
         "command_gap": 0.0,
         "unknown_response_wait": 0.05,
         "min_command_interval": 0.0,
+        "min_step_interval": 0.0,
         "step_confirm_wait": 0.3,
         "refresh_on_connect": False,
     }
@@ -491,5 +492,41 @@ async def test_lost_answer_of_applied_step_is_not_sent_again(fake_a16):
         assert await client.step_volume("a", up=True) == 65
         assert [c for c in fake_a16.received if c in ("30", "83")] == ["30", "83"]
         assert fake_a16.volume["a"] == 65
+    finally:
+        await client.stop()
+
+
+async def test_volume_steps_use_their_own_interval(fake_a16):
+    # Other commands may be faster; steps get min_step_interval.
+    fake_a16.min_interval = 0.15
+    client = _client(fake_a16, min_command_interval=0.0, min_step_interval=0.2)
+    await client.start()
+    try:
+        await client.wait_connected(2)
+        await _wait_for(lambda: client.state.user_a.preset is not None)
+        await client.set_volume("a", 67)
+        assert client.state.user_a.volume == 67
+        assert fake_a16.ignored == []
+        assert fake_a16.received.count("30") == 3
+    finally:
+        await client.stop()
+
+
+async def test_stats_are_counted(fake_a16):
+    client = _client(fake_a16, response_timeout=0.3)
+    await client.start()
+    try:
+        await client.wait_connected(2)
+        await _wait_for(lambda: client.state.user_a.preset is not None)
+        await client.send_command("2e")
+        fake_a16.drop_next["30"] = 1
+        await client.step_volume("a", up=True)
+        await asyncio.sleep(0.05)  # the worker counts after the caller resumes
+        stats = client.stats.as_dict()
+        assert stats["connects"] == 1
+        assert stats["commands_sent"] == 4  # 2e, 30 (lost), 83, 30
+        assert stats["timeouts"] == 1
+        assert stats["volume_steps_lost"] == 1
+        assert stats["response_time_s"]["samples"] == 3
     finally:
         await client.stop()

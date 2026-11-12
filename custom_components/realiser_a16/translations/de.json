@@ -12,6 +12,18 @@
           "host": "Am A16 eingestellte feste IP-Adresse.",
           "port": "Am A16 eingestellter TCP-Command-Port (Standard 4101)."
         }
+      },
+      "reconfigure": {
+        "title": "Verbindung ändern",
+        "description": "IP-Adresse oder TCP-Command-Port des A16 ändern. Eine neue IP-Adresse wird getestet und muss zum selben A16 gehören. Die Integration wird nach dem Speichern neu geladen.",
+        "data": {
+          "host": "Host",
+          "port": "Port"
+        },
+        "data_description": {
+          "host": "Am A16 eingestellte feste IP-Adresse.",
+          "port": "Am A16 eingestellter TCP-Command-Port (Standard 4101)."
+        }
       }
     },
     "error": {
@@ -19,29 +31,34 @@
       "unknown": "Unerwarteter Fehler"
     },
     "abort": {
-      "already_configured": "Dieser A16 ist bereits eingerichtet."
-    }
-  },
-  "options": {
-    "step": {
-      "init": {
-        "title": "Optionen Realiser A16",
-        "description": "TCP-Command-Port ändern. Er muss mit dem am A16 eingestellten Port übereinstimmen. Die Integration wird nach dem Speichern neu geladen.",
-        "data": {
-          "port": "Port"
-        }
-      }
+      "already_configured": "Dieser A16 ist bereits eingerichtet.",
+      "reconfigure_successful": "Die Verbindungseinstellungen wurden geändert.",
+      "wrong_device": "Unter dieser Adresse antwortet ein anderer A16. Richte ihn als neues Gerät ein, wenn du ihn hinzufügen möchtest."
     }
   },
   "entity": {
     "media_player": {
       "user_a": {
         "name": "User A"
+      },
+      "user_b": {
+        "name": "User B"
+      }
+    },
+    "number": {
+      "volume_a": {
+        "name": "Lautstärke A"
+      },
+      "volume_b": {
+        "name": "Lautstärke B"
       }
     },
     "select": {
       "preset_a": {
         "name": "Preset A"
+      },
+      "preset_b": {
+        "name": "Preset B"
       }
     },
     "sensor": {

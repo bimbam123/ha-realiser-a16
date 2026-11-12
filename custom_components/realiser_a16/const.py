@@ -46,5 +46,19 @@ RELEVANT_PATHS: Final = frozenset(
         "user_a.room",
         "user_a.subject",
         "user_a.layout",
+        "user_b.name",
+        "user_b.preset",
+        "user_b.volume",
+        "user_b.muted",
+        "user_b.room",
+        "user_b.subject",
+        "user_b.layout",
     }
 )
+
+USERS: Final = ("a", "b")
+
+# A volume target gives up after this many steps that changed nothing.
+VOLUME_MAX_FAILED_STEPS: Final = 5
+# User B info (room/subject) is not pushed; query it this long after PB changed.
+USER_B_INFO_DELAY: Final = 2.0

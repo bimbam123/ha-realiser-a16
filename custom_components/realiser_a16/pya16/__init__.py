@@ -8,6 +8,7 @@ from .client import (
     A16Client,
     A16ConnectionError,
     A16Error,
+    A16Stats,
     A16TimeoutError,
 )
 from .parser import Field, Packet, StreamParser
@@ -24,6 +25,7 @@ __all__ = [
     "A16ConnectionError",
     "A16Error",
     "A16State",
+    "A16Stats",
     "A16TimeoutError",
     "Field",
     "FirmwareInfo",

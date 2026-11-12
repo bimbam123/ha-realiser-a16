@@ -14,6 +14,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+from collections import deque
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 
@@ -49,6 +50,7 @@ ConnectionListener = Callable[[bool], None]
 
 _DEFAULT = object()
 _INFO_BLOCK_KEYS = frozenset({"AUR", "BUR"})
+_STEP_CODES = frozenset({*VOLUME_UP.values(), *VOLUME_DOWN.values()})
 # After a boot the A16 sends the user A block with a corrupted first field
 # (" 1" instead of "AUR=User 1"), so the block is also recognised by these.
 _INFO_BLOCK_MARKERS = _INFO_BLOCK_KEYS | {"AROOM", "BROOM"}
@@ -68,6 +70,54 @@ class A16TimeoutError(A16Error):
 
 class _ConnectionLost(Exception):
     """Internal: ends the current connection."""
+
+
+@dataclass(slots=True)
+class A16Stats:
+    """Counters for diagnostics (since the client was created)."""
+
+    connects: int = 0
+    disconnects: int = 0
+    commands_sent: int = 0
+    answered: int = 0
+    timeouts: int = 0
+    retries: int = 0
+    keepalive_misses: int = 0
+    volume_steps: int = 0
+    volume_steps_ignored: int = 0
+    volume_steps_lost: int = 0
+    response_times: deque[float] = field(default_factory=lambda: deque(maxlen=200))
+
+    def as_dict(self) -> dict:
+        times = sorted(self.response_times)
+        data = {
+            k: getattr(self, k)
+            for k in (
+                "connects",
+                "disconnects",
+                "commands_sent",
+                "answered",
+                "timeouts",
+                "retries",
+                "keepalive_misses",
+                "volume_steps",
+                "volume_steps_ignored",
+                "volume_steps_lost",
+            )
+        }
+        data["response_time_s"] = (
+            {
+                "samples": len(times),
+                "median": round(times[len(times) // 2], 3),
+                "p95": round(
+                    times[int(len(times) * 0.95) - 1 if len(times) > 1 else 0], 3
+                ),
+                "max": round(times[-1], 3),
+            }
+            if times
+            else None
+        )
+        return data
 
 
 @dataclass(slots=True)
@@ -108,7 +158,12 @@ class A16Client:
         boot_timeout: float = 120.0,
         min_command_interval: float = 1.2,
         step_confirm_wait: float = 1.0,
+        min_step_interval: float = 1.5,
     ) -> None:
+        # Consecutive volume steps need more time than other commands: over a
+        # wired network a third step 1.2 s after the previous one was lost.
+        self.min_step_interval = min_step_interval
+        self.stats = A16Stats()
         # The A16 ignores commands sent less than ~1 s after the previous one
         # (measured on FW 2.17: 0.4-0.8 s ignored, 1.0/1.3 s applied); the
         # default adds a margin for network jitter.
@@ -217,6 +272,7 @@ class A16Client:
                 if attempt == retries:
                     raise
                 _LOGGER.debug("No answer to %s, retrying", code)
+                self.stats.retries += 1
         raise AssertionError("unreachable")
 
     async def _send_once(
@@ -315,16 +371,19 @@ class A16Client:
             (up and before >= VOLUME_MAX) or (not up and before <= VOLUME_MIN)
         )
         for attempt in range(2):
+            self.stats.volume_steps += 1
             try:
                 await (self.volume_up if up else self.volume_down)(user)
             except A16TimeoutError:
                 _LOGGER.debug("Volume step %s not answered, querying volume", user)
+                self.stats.volume_steps_lost += 1
                 await self.send_command(VOLUME_QUERY[user])
             if await self._wait_volume_change(user, before, self.step_confirm_wait):
                 return us.volume
             if at_limit or attempt == 1:
                 return None
             _LOGGER.debug("Volume step %s ignored by the A16, sending again", user)
+            self.stats.volume_steps_ignored += 1
         return None
 
     async def _wait_volume_change(
@@ -454,8 +513,11 @@ class A16Client:
             if req.future.done():  # caller gave up
                 continue
             if self._last_send is not None:
+                interval = self.min_command_interval
+                if req.code in _STEP_CODES:
+                    interval = max(interval, self.min_step_interval)
                 loop_time = asyncio.get_running_loop().time()
-                wait = self._last_send + self.min_command_interval - loop_time
+                wait = self._last_send + interval - loop_time
                 if wait > 0:
                     await asyncio.sleep(wait)
             if req.future.done():  # caller gave up while waiting
@@ -472,6 +534,8 @@ class A16Client:
                     req.future.set_exception(A16ConnectionError(repr(err)))
                 raise _ConnectionLost(repr(err)) from err
             _LOGGER.debug("Sent %s", req.code)
+            self.stats.commands_sent += 1
+            sent_at = self._last_send
             if waiter is None:
                 await asyncio.sleep(self.unknown_response_wait)
                 if not req.future.done():
@@ -480,7 +544,12 @@ class A16Client:
                 try:
                     async with asyncio.timeout(req.timeout):
                         await asyncio.shield(req.future)
+                    self.stats.answered += 1
+                    self.stats.response_times.append(
+                        asyncio.get_running_loop().time() - sent_at
+                    )
                 except TimeoutError:
+                    self.stats.timeouts += 1
                     if not req.future.done():
                         req.future.set_exception(
                             A16TimeoutError(f"No answer to command {req.code}")
@@ -513,6 +582,7 @@ class A16Client:
                         # for ~60 s and then resets the TCP connection itself.
                         _LOGGER.debug("Keepalive not answered while booting")
                         break
+                    self.stats.keepalive_misses += 1
                     if attempt == self.keepalive_retries:
                         raise _ConnectionLost("Keepalive not answered") from err
                     _LOGGER.debug("Keepalive not answered, retrying")
@@ -567,8 +637,10 @@ class A16Client:
             return
         if connected:
             self._connected.set()
+            self.stats.connects += 1
         else:
             self._connected.clear()
+            self.stats.disconnects += 1
         _LOGGER.info(
             "%s A16 at %s:%s",
             "Connected to" if connected else "Lost",

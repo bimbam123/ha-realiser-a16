@@ -9,7 +9,12 @@ from homeassistant.core import Event, HomeAssistant
 from .coordinator import A16Coordinator
 from .pya16 import A16Client
 
-PLATFORMS: list[Platform] = [Platform.MEDIA_PLAYER, Platform.SELECT, Platform.SENSOR]
+PLATFORMS: list[Platform] = [
+    Platform.MEDIA_PLAYER,
+    Platform.NUMBER,
+    Platform.SELECT,
+    Platform.SENSOR,
+]
 
 type A16ConfigEntry = ConfigEntry[A16Coordinator]
 
