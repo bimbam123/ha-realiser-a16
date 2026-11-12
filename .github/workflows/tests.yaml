@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   tests:
-    name: Lint and tests
+    name: Lint and tests (library + Home Assistant)
     runs-on: "ubuntu-latest"
     steps:
       - name: Checkout
@@ -18,9 +18,9 @@ jobs:
       - name: Set up Python
         uses: "actions/setup-python@v5"
         with:
-          python-version: "3.13"
+          python-version: "3.14"
       - name: Install test requirements
-        run: pip install -r requirements_test.txt
+        run: pip install -r requirements_test_ha.txt
       - name: Ruff lint
         run: ruff check .
       - name: Ruff format

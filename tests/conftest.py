@@ -15,6 +15,13 @@ sys.path.insert(0, str(ROOT / "custom_components" / "realiser_a16"))
 
 FIXTURES = ROOT / "tests" / "fixtures"
 
+# The Home Assistant integration tests need pytest-homeassistant-custom-component,
+# which only works on Linux (HA imports fcntl). Skip collecting them elsewhere.
+try:
+    import pytest_homeassistant_custom_component  # noqa: F401
+except ImportError:
+    collect_ignore = ["integration"]
+
 
 def load_chunks(name: str, conn: str | None = None) -> list[bytes]:
     """Raw received chunks (bytes) from an anonymised capture."""

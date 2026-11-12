@@ -15,11 +15,67 @@
       }
     },
     "error": {
-      "cannot_connect": "Failed to connect. Check the IP address, the port and that the TCP command server is enabled.",
+      "cannot_connect": "Failed to connect. Check the IP address, the port and that the TCP command server is enabled. The A16 accepts only one controller at a time: close other control apps (e.g. Centro Control) and try again.",
       "unknown": "Unexpected error"
     },
     "abort": {
       "already_configured": "This A16 is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Realiser A16 options",
+        "description": "Change the TCP command port. It must match the port set on the A16. The integration reloads after saving.",
+        "data": {
+          "port": "Port"
+        }
+      }
+    }
+  },
+  "entity": {
+    "media_player": {
+      "user_a": {
+        "name": "User A"
+      }
+    },
+    "select": {
+      "preset_a": {
+        "name": "Preset A"
+      }
+    },
+    "sensor": {
+      "mode": {
+        "name": "Mode",
+        "state": {
+          "svs": "SVS (headphones)",
+          "av": "AV (speakers)",
+          "mix": "Mix"
+        }
+      },
+      "ht_mode": {
+        "name": "Head tracking mode"
+      },
+      "firmware": {
+        "name": "Firmware"
+      }
+    }
+  },
+  "exceptions": {
+    "not_reachable": {
+      "message": "Cannot connect to the Realiser A16 at {host}. Another control app may hold the only connection the A16 accepts."
+    },
+    "command_failed": {
+      "message": "The Realiser A16 did not execute the command: {error}"
+    },
+    "mute_failed": {
+      "message": "The Realiser A16 did not confirm the mute state."
+    },
+    "invalid_source": {
+      "message": "Unknown source: {source}"
+    },
+    "invalid_preset": {
+      "message": "Invalid preset: {option}"
     }
   }
 }

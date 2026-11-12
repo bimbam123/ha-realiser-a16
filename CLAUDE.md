@@ -127,6 +127,19 @@ bedient. Lauf 2 (`…-133219-…`) lief ohne Bedienung und ist die Referenz.
   `.venv/Scripts/python -m pip install -r requirements_test.txt`.
 - Tests: `.venv/Scripts/python -m pytest -q`. Die Tests importieren `pya16`
   direkt (siehe `tests/conftest.py`), Home Assistant ist nicht nötig.
+- HA-Integrationstests (`tests/integration/`) laufen **nur unter Linux**,
+  weil Home Assistant `fcntl` importiert. Unter Windows werden sie
+  automatisch nicht gesammelt. Lokal laufen sie über WSL mit einer
+  uv-Umgebung:
+  `wsl -d Ubuntu -- bash -lc 'cd /mnt/c/Coding/ha-realiser-a16 &&
+  ~/.venvs/ha-a16/bin/python -m pytest -q -p no:cacheprovider'`
+  (Einrichtung: `~/.local/bin/uv venv --python 3.14 ~/.venvs/ha-a16`, dann
+  `uv pip install -r requirements_test_ha.txt`). Die CI führt alles aus.
+- Bibliothekstests mit dem nachgebauten A16 brauchen unter dem HA-Testpaket
+  die Fixture `socket_enabled` (siehe `tests/test_client.py`).
+- Für die Device-Registry `async_get_device_by_identifier(identifier,
+  entry_id)` nutzen. `async_get_device` ist in HA 2026.10 veraltet und
+  löst in Tests einen Fehler aus.
 - Am Gerät ausprobieren: `python tools/a16_cli.py <host> state | monitor |
   send <code> | …`. Dabei bitte keine andere Steuer-App verbinden, denn der
   A16 nimmt nur einen Client an.

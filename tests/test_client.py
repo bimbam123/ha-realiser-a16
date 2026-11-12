@@ -8,6 +8,19 @@ from pya16 import A16Client, A16ConnectionError, A16TimeoutError
 from pya16.protocol import encode_command, expected_keys, preset_command
 
 
+@pytest.fixture(autouse=True)
+def _allow_loopback_sockets(request):
+    """These tests use a fake A16 on 127.0.0.1.
+
+    pytest-homeassistant-custom-component (installed for the integration
+    tests on Linux) blocks sockets by default; re-enable them here.
+    """
+    try:
+        request.getfixturevalue("socket_enabled")
+    except pytest.FixtureLookupError:
+        pass  # plugin not installed (e.g. Windows): sockets are allowed anyway
+
+
 def _client(server, **kw) -> A16Client:
     opts = {
         "keepalive_interval": 60,

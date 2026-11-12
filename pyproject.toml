@@ -1,6 +1,6 @@
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["tests"]
+pythonpath = [".", "tests"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 
@@ -17,4 +17,4 @@ ignore = ["ASYNC109"]
 "tests/*" = ["ASYNC110"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["pya16", "conftest"]
+known-first-party = ["pya16", "conftest", "custom_components"]

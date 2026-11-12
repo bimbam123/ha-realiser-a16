@@ -15,11 +15,67 @@
       }
     },
     "error": {
-      "cannot_connect": "Verbindung fehlgeschlagen. Prüfe IP-Adresse, Port und ob der TCP-Command-Server aktiviert ist.",
+      "cannot_connect": "Verbindung fehlgeschlagen. Prüfe IP-Adresse, Port und ob der TCP-Command-Server aktiviert ist. Der A16 nimmt nur eine Steuerung gleichzeitig an: Schließe andere Steuer-Apps (z. B. Centro Control) und versuche es erneut.",
       "unknown": "Unerwarteter Fehler"
     },
     "abort": {
       "already_configured": "Dieser A16 ist bereits eingerichtet."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Optionen Realiser A16",
+        "description": "TCP-Command-Port ändern. Er muss mit dem am A16 eingestellten Port übereinstimmen. Die Integration wird nach dem Speichern neu geladen.",
+        "data": {
+          "port": "Port"
+        }
+      }
+    }
+  },
+  "entity": {
+    "media_player": {
+      "user_a": {
+        "name": "User A"
+      }
+    },
+    "select": {
+      "preset_a": {
+        "name": "Preset A"
+      }
+    },
+    "sensor": {
+      "mode": {
+        "name": "Modus",
+        "state": {
+          "svs": "SVS (Kopfhörer)",
+          "av": "AV (Lautsprecher)",
+          "mix": "Mix"
+        }
+      },
+      "ht_mode": {
+        "name": "Head-Tracking-Modus"
+      },
+      "firmware": {
+        "name": "Firmware"
+      }
+    }
+  },
+  "exceptions": {
+    "not_reachable": {
+      "message": "Keine Verbindung zum Realiser A16 unter {host}. Möglicherweise belegt eine andere Steuer-App die einzige Verbindung, die der A16 annimmt."
+    },
+    "command_failed": {
+      "message": "Der Realiser A16 hat den Befehl nicht ausgeführt: {error}"
+    },
+    "mute_failed": {
+      "message": "Der Realiser A16 hat den Stummschaltungs-Zustand nicht bestätigt."
+    },
+    "invalid_source": {
+      "message": "Unbekannte Quelle: {source}"
+    },
+    "invalid_preset": {
+      "message": "Ungültiges Preset: {option}"
     }
   }
 }
