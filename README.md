@@ -15,7 +15,8 @@ command server (firmware 1.90 or newer).
 
 ## Status
 
-**Early version (0.2.2).** Tested against one A16 (firmware 2.17) in Home
+**Early version.** See [Releases](https://github.com/bimbam123/ha-realiser-a16/releases)
+for the current version. Tested against one A16 (firmware 2.17) in Home
 Assistant 2026.11. Expect rough edges and please report issues.
 
 ### Entities
@@ -34,6 +35,12 @@ Assistant 2026.11. Expect rough edges and please report issues.
 The volume of the user players is shown **1:1 with the A16 display**: 64 on
 the A16 is shown as 64 % in Home Assistant. The A16 range is 27–99; a lower
 value is raised to 27. Volume up/down is exactly one A16 step.
+
+> **Since v0.2.2** (currently a
+> [pre-release](https://github.com/bimbam123/ha-realiser-a16/releases)).
+> In v0.2.1 the players show the volume in percent of the range 27–99
+> (64 → 51 %), and there are additional entities *Volume A/B* with the
+> A16 values.
 
 Changes made with the IR remote are pushed by the A16 and show up in Home
 Assistant right away (with *TCP slave response* enabled).
