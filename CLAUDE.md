@@ -176,14 +176,27 @@ bedient. Lauf 2 (`…-133219-…`) lief ohne Bedienung und ist die Referenz.
 ## Arbeitsweise
 
 - Kleine, überprüfbare Schritte. Vor größeren Änderungen einen Plan zeigen.
-- **Commits und Pushes nur nach Rückfrage.**
+- **Commits und Pushes nur nach Rückfrage.** Zustimmung zu einem Vorschlag
+  ist kein Auftrag: Umsetzen, Pushen und Veröffentlichen jeweils erst nach
+  ausdrücklichem Go.
+- **Release-Ablauf:**
+  1. Version in `manifest.json` auf `X.Y.Zb1` setzen und pushen. Erst wenn
+     die CI grün ist, das GitHub-Release `vX.Y.Zb1` als **Pre-Release**
+     erstellen.
+  2. Der Nutzer testet es: Im Marketplace den Schalter „Pre-release“ für das
+     Repository einschalten.
+  3. Bei Korrekturen folgt `bN+1`. Ist alles in Ordnung, die Version auf
+     `X.Y.Z` setzen und das reguläre Release `vX.Y.Z` erstellen. Der
+     Marketplace bietet ein Pre-Release nur an, solange es neuer ist als das
+     letzte reguläre Release.
 - Tests: `pytest` für `pya16` mit den Fixtures und einem nachgebauten A16
   (`tests/conftest.py`). Neue Protokollfälle immer mit Test abdecken.
 - Lint und Format: `ruff check` und `ruff format`.
 - CI (muss grün sein): `hassfest` und `hacs/action` (Marketplace-Validierung).
   Checks nie per `ignore` abschalten, sonst ist der Katalog ausgeschlossen.
 - Marketplace-Regeln:
-  - `version` in `manifest.json` = Release-Tag (SemVer, z. B. `v0.2.0` ↔ `0.2.0`).
+  - `version` in `manifest.json` = Release-Tag (z. B. `v0.2.0` ↔ `0.2.0`,
+    `v0.2.2b1` ↔ `0.2.2b1`).
   - Übersetzungen nur in `translations/` (vollständiges `en.json`, dazu
     `de.json`). Custom Integrations bekommen kein `strings.json`.
   - Icons in `custom_components/realiser_a16/brand/`. Weder HA- noch
