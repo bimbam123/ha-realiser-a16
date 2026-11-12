@@ -1,0 +1,25 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to Realiser A16",
+        "description": "Enable the TCP command server on the A16 (Settings > Network) and enter its fixed IP address and TCP command port.",
+        "data": {
+          "host": "Host",
+          "port": "Port"
+        },
+        "data_description": {
+          "host": "Fixed IP address configured on the A16.",
+          "port": "TCP command port configured on the A16 (default 4101)."
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect. Check the IP address, the port and that the TCP command server is enabled.",
+      "unknown": "Unexpected error"
+    },
+    "abort": {
+      "already_configured": "This A16 is already configured."
+    }
+  }
+}

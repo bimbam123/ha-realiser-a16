@@ -1,0 +1,13 @@
+{
+  "domain": "realiser_a16",
+  "name": "Smyth Realiser A16",
+  "categories": ["media_entertainment.speakers_audio"],
+  "codeowners": ["@bimbam123"],
+  "config_flow": true,
+  "documentation": "https://github.com/bimbam123/ha-realiser-a16",
+  "integration_type": "device",
+  "iot_class": "local_push",
+  "issue_tracker": "https://github.com/bimbam123/ha-realiser-a16/issues",
+  "requirements": [],
+  "version": "0.1.0"
+}
