@@ -46,6 +46,70 @@ einzelne Seiten der PDF lesen (`pages`).
    gesichert behandelt werden. Neue Erkenntnisse vom echten Gerät kommen dort
    hinein.
 
+## Beobachtungen am echten Gerät
+
+Test am 2026-11-12, A16 unter 192.168.1.5:4101, FW `A16FW=2.17 Jan 26 2024`,
+Tool `tools/a16_capture.py`, Rohdaten in `docs/captures/`. Die Captures
+enthalten Seriennummer und Presetnamen. Vor einem Commit prüfen, ob sie
+öffentlich sein sollen.
+
+Zwei Läufe. In Lauf 1 (`…-132359-…`) wurde das Gerät parallel von Hand
+bedient. Lauf 2 (`…-133219-…`) lief ohne Bedienung und ist die Referenz.
+
+**Framing**
+- **Jedes Paket endet mit `\x00\r`.** Hängen Pakete im Stream aneinander,
+  beginnt das nächste Feld mit `\r` (z. B. `"\rVA=54"`). Felder deshalb
+  trimmen (`strip()`).
+- **Es gibt Felder ohne `=`**, z. B. `V00 V01 … A00 A01 …` als
+  Lautsprecher-Sichtbarkeit und -Status. Der Parser darf sie nicht verwerfen.
+  `api.parse_fields` tut das derzeit und muss angepasst werden.
+- **Leere Felder** (`\x00\x00`) kommen vor, z. B. in der Antwort auf `64`.
+
+**Pushes**
+- **Ohne Anfrage pusht der A16 laufend Status**, etwa alle 0,9–1,4 s, den
+  kompletten User-A-Block (`AUR … USER`). Das beginnt schon direkt nach dem
+  Verbinden.
+- Bei Bedienung von Hand kommen sofort Einzelfelder (`VA=56`) und
+  gelegentlich der Block `V…/A… ALL= TEST= MODE=`. `local_push` ist damit
+  bestätigt.
+- Antworten stecken mitten im Push-Strom. Regel 3 (keine Zuordnung von
+  Antwort zu Befehl) ist zwingend.
+
+**Antworten (Lauf 2, Verzögerung nach dem Senden)**
+- `2e` → `PWR=ON` (~0,6 s)
+- `64` → `A16FW`, `APMFW`, `HSRFW`, `HTFW`, `A16SN` (~0,7 s)
+- `80` → User-A-Block, nicht vom normalen Push zu unterscheiden
+- `83` → nur `VA=64`, **ohne `TRI`** (laut PDF kommt `TRI` nur bei
+  aktivem Tri-Level)
+- `a0` → `BUR … BTACT`, inkl. `BQDATE` (~0,6 s)
+- `37` → `ACH1…ACH24`, `BCH1…BCH16`, nicht belegte Kanäle leer (`ACH17=`)
+  (~0,7 s)
+- Zusätzliche Keys, die das PDF nicht nennt: `AQDATE`/`BQDATE` (HPEQ-Datum)
+  und `MODE=SVS` im Speaker-Block.
+
+**Verbindungen**
+- **Nur ein Client gleichzeitig.** Solange c1 aktiv ist, läuft der Aufbau
+  einer zweiten Verbindung nach 5 s in einen Timeout. c1 arbeitet dabei
+  ungestört weiter. (In Lauf 1 wurde c2 angenommen, vermutlich weil c1 dort
+  schon still abgebaut war.)
+  → Die Integration darf **keine** zweite Verbindung öffnen. Eine andere
+  Steuer-App blockiert die Integration und umgekehrt.
+
+**Inaktivitäts-Timeout**
+- Er zählt nur, was der **Client** sendet. Die eigenen Pushes des A16 halten
+  die Verbindung nicht offen.
+- Etwa **120 s nach dem letzten gesendeten Befehl** hört der A16 auf zu
+  pushen und baut die Verbindung **still** ab, ohne FIN/EOF beim Client.
+  Erst der nächste Schreibversuch scheitert mit `ConnectionResetError`.
+  Danach ist ein Reconnect sofort möglich (~60 ms).
+  (Der Timeout am Gerät steht vermutlich auf 120 s, einstellbar sind
+  30–250 s.)
+- → **Keepalive** (`2e`) deutlich unter 30 s senden, damit jede
+  Timeout-Einstellung abgedeckt ist.
+- → Zusätzlich ein **Watchdog**: kommt einige Sekunden lang kein Push mehr,
+  gilt die Verbindung als tot, und es folgt ein Reconnect. Auf EOF zu warten
+  reicht nicht.
+
 ## Architektur
 
 - `custom_components/realiser_a16/api.py`: reiner asyncio-Protokoll-Client

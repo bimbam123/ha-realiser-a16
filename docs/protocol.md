@@ -181,10 +181,25 @@ Preset n = base + (n − 1), base `0x70` (A) / `0x90` (B).
 
 IDs 51/52 are LFE positions on the map; only IDs 1–50 have select commands.
 
+## Observed on a real device (FW 2.17, 2026-11-12)
+
+Details and open points: see `CLAUDE.md` → "Beobachtungen am echten Gerät".
+
+- Every packet ends with `\x00\r`; fields may start with `\r` → strip them.
+- Bare fields without `=` exist (`V00`, `A01`, …).
+- The A16 pushes status unsolicited roughly every 0.9–1.4 s.
+- Extra keys not in the PDF: `AQDATE`/`BQDATE`, `MODE` in the speaker block.
+- `83` returns only `VA=nn` (no `TRI` unless tri-level is enabled).
+- Only one client at a time: a second connect attempt times out while the
+  first connection is active.
+- Inactivity timeout counts client-sent data only. After it expires (~120 s on
+  the test device) the A16 stops pushing and drops the connection silently
+  (no FIN). The next write fails with a reset. Use a keepalive below 30 s
+  plus a no-data watchdog.
+
 ## Known open questions
 
-- Does the A16 accept more than one simultaneous TCP client?
-- Exact behaviour of unsolicited messages with *TCP slave response* enabled.
-- Does any command reset the inactivity timer without side effects?
-  Candidate keepalive: `2e` (power status).
+- Is `2e` as keepalive enough to reset the inactivity timer? (Expected yes,
+  since any client data seems to count. Not yet tested over > 120 s.)
+- Does the push behaviour change with *TCP slave response* disabled?
 - Upper/lower case handling of command codes.

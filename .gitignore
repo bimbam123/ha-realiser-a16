@@ -21,3 +21,6 @@ config/
 
 # Manufacturer documentation is copyrighted - keep it local only
 *.pdf
+
+# Raw device captures (serial number, personal preset names) - local only
+docs/captures/
