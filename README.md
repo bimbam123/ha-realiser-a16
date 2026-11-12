@@ -20,6 +20,8 @@ Assistant 2026.11. Expect rough edges and please report issues.
 
 ### Entities
 
+<img src="https://raw.githubusercontent.com/bimbam123/ha-realiser-a16/main/docs/images/device-page.png" alt="Device page of the Realiser A16 in Home Assistant" width="600">
+
 | Entity | What it does |
 |---|---|
 | `media_player` Realiser A16 | power on / standby and source selection (eARC, HDMI 1–4, USB, Line, Stereo, Coaxial, Optical) for the whole device |
