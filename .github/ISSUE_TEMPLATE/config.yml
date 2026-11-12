@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Troubleshooting
+    url: https://github.com/bimbam123/ha-realiser-a16#troubleshooting
+    about: Common problems (one controller at a time, slow volume steps, mute state, power on).
+  - name: Protocol notes
+    url: https://github.com/bimbam123/ha-realiser-a16/blob/main/docs/protocol.md
+    about: What the A16 IP command server supports and how it behaves.

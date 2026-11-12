@@ -1,0 +1,81 @@
+name: Bug report
+description: Something does not work as expected.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! This is an **unofficial** integration — please do not
+        contact Smyth Research about it.
+
+        Before you start, please check the
+        [troubleshooting section](https://github.com/bimbam123/ha-realiser-a16#troubleshooting)
+        (e.g. only one controller at a time, about one minute of waiting after
+        another app disconnected).
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Set the volume of User A to 70
+        2. …
+  - type: input
+    id: integration_version
+    attributes:
+      label: Integration version
+      placeholder: "e.g. 0.2.2"
+    validations:
+      required: true
+  - type: input
+    id: ha_version
+    attributes:
+      label: Home Assistant version
+      placeholder: "e.g. 2026.11.1"
+    validations:
+      required: true
+  - type: input
+    id: firmware
+    attributes:
+      label: A16 firmware
+      description: Shown by the sensor "Firmware" of the Realiser A16 device.
+      placeholder: "e.g. 2.17 Jan 26 2024"
+    validations:
+      required: true
+  - type: dropdown
+    id: network
+    attributes:
+      label: How are Home Assistant and the A16 connected?
+      options:
+        - Both wired
+        - Home Assistant via Wi-Fi
+        - A16 via Wi-Fi bridge
+        - Other / not sure
+  - type: checkboxes
+    id: other_app
+    attributes:
+      label: Other controllers
+      options:
+        - label: No other app (e.g. Centro Control) was connected to the A16 at the same time.
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics
+      description: |
+        Device page of the Realiser A16 → ⋮ → **Download diagnostics**, then drag
+        the file here. Serial number and names are removed automatically.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Debug log
+      description: |
+        Integration entry → ⋮ → **Enable debug logging**, reproduce the problem,
+        then ⋮ → **Disable debug logging** to download the log. Please remove
+        passwords or API keys of other integrations before posting it.
+      render: text

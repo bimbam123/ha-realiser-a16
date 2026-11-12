@@ -20,6 +20,8 @@ Assistant 2026.11. Expect rough edges and please report issues.
 
 ### Entities
 
+<img src="https://raw.githubusercontent.com/bimbam123/ha-realiser-a16/main/docs/images/device-page.png" alt="Device page of the Realiser A16 in Home Assistant" width="600">
+
 | Entity | What it does |
 |---|---|
 | `media_player` Realiser A16 | power on / standby and source selection (eARC, HDMI 1–4, USB, Line, Stereo, Coaxial, Optical) for the whole device |
@@ -58,7 +60,8 @@ Assistant right away (with *TCP slave response* enabled).
 ## Requirements
 
 - Home Assistant 2026.11 or newer
-- Realiser A16 with firmware 1.90+, connected by Ethernet
+- Realiser A16 with firmware 1.90+, connected by Ethernet (tested so far with
+  firmware **2.17** on one device; reports for other versions are welcome)
 - On the A16 under **Settings > Network**:
   - a **fixed IP address** (outside your router's DHCP range)
   - **TCP command server** enabled (default port 4101)
@@ -82,6 +85,37 @@ your Home Assistant configuration and restart.
 
 **Settings > Devices & services > Add integration > Smyth Realiser A16**, then
 enter the A16's IP address and TCP command port.
+
+To change the IP address or port later: open the entry and choose
+**⋮ > Reconfigure**.
+
+## Troubleshooting
+
+| Problem | What to check |
+|---|---|
+| *Failed to connect* during setup | IP address and port as set on the A16; *TCP command server* enabled; the A16 connected by Ethernet. |
+| Setup fails right after using another app | The A16 accepts **only one controller at a time**. Close other control apps (e.g. Centro Control). After a controller disconnects, the A16 may refuse new connections for **about a minute**; wait and try again. |
+| Entities are *unavailable* | Another app holds the connection, the A16 is off at the mains, or the network is down. The integration reconnects by itself. |
+| Changes made with the remote do not show up | Enable **TCP slave response** on the A16 (Settings > Network). |
+| Volume changes slowly | Expected: the A16 accepts about one volume step every 2.5 s, so a change of 10 takes about 25 s. A newer value replaces an older one. |
+| Mute shows no state | Expected until mute was toggled once: the A16 has no query for the mute state. |
+| Power on takes long | Expected: the A16 boots for about 65 s (`power_state: boot`) and briefly drops the connection afterwards. |
+
+## Reporting a problem
+
+Please open an [issue](https://github.com/bimbam123/ha-realiser-a16/issues/new/choose)
+and include:
+
+1. **Diagnostics:** open the device page of the Realiser A16 in Home Assistant
+   and choose **⋮ > Download diagnostics**. Serial number and names are
+   removed automatically. The file contains response times and lost or
+   ignored commands, which helps a lot with connection problems.
+2. **Debug log** of the situation: on the integration entry choose
+   **⋮ > Enable debug logging**, reproduce the problem, then **⋮ > Disable
+   debug logging** to download the log. Check it for passwords or API keys of
+   other integrations before attaching it.
+3. A16 firmware version (sensor *Firmware*), Home Assistant version and how the
+   A16 is connected (wired, Wi-Fi bridge, …).
 
 ## Protocol
 

@@ -1,0 +1,28 @@
+name: Feature request
+description: Suggest a new function or an improvement.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Planned features are listed in the
+        [roadmap](https://github.com/bimbam123/ha-realiser-a16/blob/main/docs/roadmap.md).
+        The integration can only use what the A16 IP command server offers, see
+        [docs/protocol.md](https://github.com/bimbam123/ha-realiser-a16/blob/main/docs/protocol.md).
+  - type: textarea
+    id: wish
+    attributes:
+      label: What would you like to do?
+      description: Describe the use case, not only the solution.
+    validations:
+      required: true
+  - type: textarea
+    id: how
+    attributes:
+      label: How do you do it today?
+      description: E.g. with the remote, the Centro Control app, the A16 menu.
+  - type: input
+    id: firmware
+    attributes:
+      label: A16 firmware
+      placeholder: "e.g. 2.17 Jan 26 2024"
