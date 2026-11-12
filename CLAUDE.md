@@ -20,7 +20,9 @@ Geplante Entitäten:
 ## Protokollregeln (verbindlich)
 
 Maßgeblich ist [`docs/protocol.md`](docs/protocol.md). Die Hersteller-PDF
-bleibt lokal und wird **nie** committet.
+bleibt lokal und wird **nie** committet. Sie wird auch **nie komplett
+gelesen** (~25k Tokens): zuerst `docs/protocol.md` nutzen, bei Bedarf nur
+einzelne Seiten der PDF lesen (`pages`).
 
 1. **Befehl** = 2 ASCII-Hexzeichen + `\r\n`, klein geschrieben (`"6a\r\n"`).
 2. **Antwort** = Felder `KEY=VALUE`, jedes mit `\x00` abgeschlossen. Den
