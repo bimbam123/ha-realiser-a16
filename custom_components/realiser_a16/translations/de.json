@@ -1,0 +1,25 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Mit Realiser A16 verbinden",
+        "description": "Aktiviere am A16 den TCP-Command-Server (Settings > Network) und gib die dort eingestellte feste IP-Adresse und den TCP-Command-Port ein.",
+        "data": {
+          "host": "Host",
+          "port": "Port"
+        },
+        "data_description": {
+          "host": "Am A16 eingestellte feste IP-Adresse.",
+          "port": "Am A16 eingestellter TCP-Command-Port (Standard 4101)."
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Verbindung fehlgeschlagen. Prüfe IP-Adresse, Port und ob der TCP-Command-Server aktiviert ist.",
+      "unknown": "Unerwarteter Fehler"
+    },
+    "abort": {
+      "already_configured": "Dieser A16 ist bereits eingerichtet."
+    }
+  }
+}
