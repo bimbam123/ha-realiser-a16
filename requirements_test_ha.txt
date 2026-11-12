@@ -1,4 +1,4 @@
 # Home Assistant integration tests (Linux only: Home Assistant imports fcntl).
 # Pins its own pytest/pytest-asyncio and Home Assistant 2026.10.4.
 pytest-homeassistant-custom-component==0.13.375
-ruff==0.13.3
+ruff==0.17.4
