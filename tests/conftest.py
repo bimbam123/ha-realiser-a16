@@ -62,6 +62,11 @@ class FakeA16:
             "75": b"PA=06\x00\r",
         }
         self.push_packet = packets_with(chunks, b"AUR=")
+        speaker_block = packets_with(
+            load_chunks("run1_manual_operation.jsonl"), b"MODE="
+        )
+        self.responses["ae"] = speaker_block
+        self.responses["af"] = speaker_block
         self.received: list[str] = []
         self.connections_total = 0
         self.active = 0

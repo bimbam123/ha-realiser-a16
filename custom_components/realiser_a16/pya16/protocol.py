@@ -123,6 +123,7 @@ REFRESH_COMMANDS: Final = (
     CMD_USER_B_INFO,
     CMD_USER_B_VOLUME,
     CMD_ASSIGNMENTS,
+    CMD_SPEAKER_STATUS,  # also returns ALL=, TEST=, MODE=
 )
 
 _SPECIAL_IR_RESPONSES: Final[dict[str, tuple[str, ...]]] = {
@@ -154,6 +155,8 @@ _FIXED_RESPONSES: Final[dict[str, tuple[str, ...]]] = {
     CMD_USER_B_INFO: ("BUR",),
     CMD_USER_B_VOLUME: ("VB",),
     CMD_USER_B_HT_ANGLE: ("BHT",),
+    CMD_SPEAKER_VISIBILITY: ("V00",),
+    CMD_SPEAKER_STATUS: ("A00", "MODE"),
 }
 
 

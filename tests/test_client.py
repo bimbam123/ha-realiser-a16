@@ -56,7 +56,9 @@ async def test_refresh_populates_state(fake_a16):
         assert s.firmware.serial == "A16HS0000#000000"
         assert s.user_b.name == "Listener 2"
         assert s.user_a.volume == 64
-        assert fake_a16.received[:7] == ["2e", "64", "80", "83", "a0", "a3", "37"]
+        await _wait_for(lambda: client.state.mode is not None)
+        assert client.state.mode == "SVS"
+        assert fake_a16.received[:8] == ["2e", "64", "80", "83", "a0", "a3", "37", "af"]
     finally:
         await client.stop()
     assert fake_a16.max_active == 1

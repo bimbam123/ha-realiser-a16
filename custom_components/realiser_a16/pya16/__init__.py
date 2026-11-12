@@ -12,11 +12,13 @@ from .client import (
 )
 from .parser import Field, Packet, StreamParser
 from .protocol import DEFAULT_PORT, IR_KEYS, SOURCES
+from .speakers import SPEAKERS, Layer, Speaker
 from .state import A16State, FirmwareInfo, UserState
 
 __all__ = [
     "DEFAULT_PORT",
     "IR_KEYS",
+    "SPEAKERS",
     "SOURCES",
     "A16Client",
     "A16ConnectionError",
@@ -25,7 +27,9 @@ __all__ = [
     "A16TimeoutError",
     "Field",
     "FirmwareInfo",
+    "Layer",
     "Packet",
+    "Speaker",
     "StreamParser",
     "UserState",
 ]

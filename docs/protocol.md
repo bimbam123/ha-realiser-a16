@@ -131,8 +131,8 @@ table says `ALL=SOLO`/`ALL=MUTE`. Trust the table **(unverified)**.
 | `af` | Active speaker status | `A00`, `A01`, … `Ann` |
 
 Level meter channel keys besides `L1..L24`: `AHL`, `AHR`, `ATL`, `ATR`, `BHL`,
-`BHR`, `BTL`, `BTR` (headphone / tactile L/R for user A/B) **(inferred from the
-meter screen, unverified)**.
+`BHR`, `BTL`, `BTR` (headphone / tactile L/R for user A/B; confirmed by the
+meter screenshot Fig. 11, not yet seen on the device).
 
 **User A info (`80`):**
 `AUR` user name · `PA` preset no. · `VA` volume · `TRI` tri-level (1–3) ·
@@ -163,23 +163,111 @@ Preset n = base + (n − 1), base `0x70` (A) / `0x90` (B).
 
 ### Speaker IDs (Table 3)
 
-| ID | Name | ID | Name | ID | Name | ID | Name |
-|---|---|---|---|---|---|---|---|
-| 1 | L | 14 | Rw | 27 | Lhs | 40 | Rs1 |
-| 2 | R | 15 | Lbs | 28 | Rhs | 41 | Lrs1 |
-| 3 | C | 16 | Rbs | 29 | Lhr | 42 | Rrs1 |
-| 4 | SW | 17 | Lc | 30 | Rhr | 43 | Lrs2 |
-| 5 | Ls | 18 | Rc | 31 | Ltf | 44 | Rrs2 |
-| 6 | Rs | 19 | Lu | 32 | Rtf | 45 | Lhw |
-| 7 | Lb | 20 | Ru | 33 | Ltm | 46 | Rhw |
-| 8 | Rb | 21 | Cu | 34 | Rtm | 47 | Lhs1 |
-| 9 | Lss | 22 | Ch | 35 | Ltr | 48 | Rhs1 |
-| 10 | Rss | 23 | Chr | 36 | Rtr | 49 | Lbu |
-| 11 | Cr | 24 | T | 37 | Lsc | 50 | Rbu |
-| 12 | SW2 | 25 | Lh | 38 | Rsc | 51 | SW (rear-left, LFE) |
-| 13 | Lw | 26 | Rh | 39 | Ls1 | 52 | SW (rear-right, LFE) |
+Table 3 of the PDF exists only as an image (a top view of the room with the
+designator and ID in each box). The layer comes from the colours of Table 4.
+Constant in code: `pya16.speakers.SPEAKERS`.
 
-IDs 51/52 are LFE positions on the map; only IDs 1–50 have select commands.
+| ID | Designator | Layer | Position (our reading of the diagram) | Grid row/col | Select code |
+|---|---|---|---|---|---|
+| 1 | `L` | floor | front left | 0/1 | `b1` |
+| 2 | `R` | floor | front right | 0/7 | `b2` |
+| 3 | `C` | floor | centre | 0/4 | `b3` |
+| 4 | `SW` | lfe | subwoofer, front left corner | 0/0 | `b4` |
+| 5 | `Ls` | floor | left surround | 4/0 | `b5` |
+| 6 | `Rs` | floor | right surround | 4/8 | `b6` |
+| 7 | `Lb` | floor | left back | 6/1 | `b7` |
+| 8 | `Rb` | floor | right back | 6/7 | `b8` |
+| 9 | `Lss` | floor | left side surround | 3/0 | `b9` |
+| 10 | `Rss` | floor | right side surround | 3/8 | `ba` |
+| 11 | `Cr` | floor | centre rear | 6/4 | `bb` |
+| 12 | `SW2` | lfe | subwoofer 2, front right corner | 0/8 | `bc` |
+| 13 | `Lw` | floor | left wide | 1/0 | `bd` |
+| 14 | `Rw` | floor | right wide | 1/8 | `be` |
+| 15 | `Lbs` | floor | left back surround | 6/3 | `bf` |
+| 16 | `Rbs` | floor | right back surround | 6/5 | `c0` |
+| 17 | `Lc` | floor | left centre | 0/2 | `c1` |
+| 18 | `Rc` | floor | right centre | 0/6 | `c2` |
+| 19 | `Lu` | under | left under, front | 2/3 | `c3` |
+| 20 | `Ru` | under | right under, front | 2/5 | `c4` |
+| 21 | `Cu` | under | centre under | 2/4 | `c5` |
+| 22 | `Ch` | height | centre height, front | 1/4 | `c6` |
+| 23 | `Chr` | height | centre height, rear | 5/4 | `c7` |
+| 24 | `T` | overhead | top, above the listener | 3/4 | `c8` |
+| 25 | `Lh` | height | left height, front | 1/2 | `c9` |
+| 26 | `Rh` | height | right height, front | 1/6 | `ca` |
+| 27 | `Lhs` | height | left height side | 3/1 | `cb` |
+| 28 | `Rhs` | height | right height side | 3/7 | `cc` |
+| 29 | `Lhr` | height | left height rear | 5/2 | `cd` |
+| 30 | `Rhr` | height | right height rear | 5/6 | `ce` |
+| 31 | `Ltf` | overhead | left top front | 2/2 | `cf` |
+| 32 | `Rtf` | overhead | right top front | 2/6 | `d0` |
+| 33 | `Ltm` | overhead | left top middle | 3/2 | `d1` |
+| 34 | `Rtm` | overhead | right top middle | 3/6 | `d2` |
+| 35 | `Ltr` | overhead | left top rear | 4/2 | `d3` |
+| 36 | `Rtr` | overhead | right top rear | 4/6 | `d4` |
+| 37 | `Lsc` | floor | left screen centre | 0/3 | `d5` |
+| 38 | `Rsc` | floor | right screen centre | 0/5 | `d6` |
+| 39 | `Ls1` | floor | left surround 1 (front of Lss) | 2/0 | `d7` |
+| 40 | `Rs1` | floor | right surround 1 (front of Rss) | 2/8 | `d8` |
+| 41 | `Lrs1` | floor | left rear surround 1 | 5/0 | `d9` |
+| 42 | `Rrs1` | floor | right rear surround 1 | 5/8 | `da` |
+| 43 | `Lrs2` | floor | left rear surround 2 | 6/2 | `db` |
+| 44 | `Rrs2` | floor | right rear surround 2 | 6/6 | `dc` |
+| 45 | `Lhw` | height | left height wide | 1/1 | `dd` |
+| 46 | `Rhw` | height | right height wide | 1/7 | `de` |
+| 47 | `Lhs1` | height | left height side 1 | 4/1 | `df` |
+| 48 | `Rhs1` | height | right height side 1 | 4/7 | `e0` |
+| 49 | `Lbu` | under | left back under | 5/3 | `e1` |
+| 50 | `Rbu` | under | right back under | 5/5 | `e2` |
+| 51 | `SW` | lfe | subwoofer, rear left corner | 6/0 | — |
+| 52 | `SW` | lfe | subwoofer, rear right corner | 6/8 | — |
+
+- The designators are unique except `SW`: IDs 4, 51 and 52 are all named
+  `SW` (12 is `SW2`). `BY_DESIGNATOR["SW"]` therefore maps to 4.
+- Only IDs 1–50 have select commands. 51/52 appear only on the map.
+- The `ACHn`/`BCHn` fields of `37` use the designators.
+- `Vnn`/`Ann`/`Mnn` use the IDs; `00` is not a speaker ID.
+
+### LCD loudspeaker map (Table 4)
+
+Table 4 of the PDF also exists only as an image: the speaker map shown on the
+A16 display. It is a grid with 7 rows × 9 columns. Row 0 is the screen side,
+column 0 is left, and the listener sits in the middle (rows 3–4, cols 3–5; ID
+24 `T` is above the seat). Empty cells have no speaker. Function in code:
+`pya16.speakers.grid()`, rows/cols per ID in `Speaker.row`/`.col`.
+
+Colours (layers): floor = green, height = orange, overhead = lilac,
+under = yellow, LFE = red.
+
+| row \ col | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
+|---|---|---|---|---|---|---|---|---|---|
+| **0** | 4 SW | 1 L | 17 Lc | 37 Lsc | 3 C | 38 Rsc | 18 Rc | 2 R | 12 SW2 |
+| **1** | 13 Lw | 45 Lhw | 25 Lh |  | 22 Ch |  | 26 Rh | 46 Rhw | 14 Rw |
+| **2** | 39 Ls1 |  | 31 Ltf | 19 Lu | 21 Cu | 20 Ru | 32 Rtf |  | 40 Rs1 |
+| **3** | 9 Lss | 27 Lhs | 33 Ltm |  | 24 T |  | 34 Rtm | 28 Rhs | 10 Rss |
+| **4** | 5 Ls | 47 Lhs1 | 35 Ltr |  |  |  | 36 Rtr | 48 Rhs1 | 6 Rs |
+| **5** | 41 Lrs1 |  | 29 Lhr | 49 Lbu | 23 Chr | 50 Rbu | 30 Rhr |  | 42 Rrs1 |
+| **6** | 51 SW | 7 Lb | 43 Lrs2 | 15 Lbs | 11 Cr | 16 Rbs | 44 Rrs2 | 8 Rb | 52 SW |
+
+The grid is checked in `tests/test_speakers.py` against a second, independent
+transcription of the image.
+
+### Centro app screenshots (Fig. 1, 10–12)
+
+The screenshots of the manufacturer's example app add no new commands. They
+confirm, however:
+- Fig. 1/10 (control page): source buttons eARC, HDMI 1–4, COAX, LINE,
+  OPTICAL, USB; per user preset 1–12 in the grid, volume 68 with a tri-level
+  1/2/3 switch for user A only; fields Listening Room, Layout, Subject, HPEQ
+  file/subject/date/type, Headphone, Tactile. Header: Audio, Upmixer, Format,
+  Users, Legacy, HT mode. This matches the fields of `80`/`a0` (incl.
+  `AQDATE`).
+- Fig. 11 (meters): 24 channel levels per user plus `HP L`, `HP R`,
+  `TACT L`, `TACT R` per user. This confirms the level keys
+  `AHL AHR ATL ATR BHL BHR BTL BTR`.
+- Fig. 12 (speaker map, layout 15.1.6): speaker buttons arranged like
+  Table 3, plus TEST, SVS/STEREO, SOLO/ALL and volume with tri-level 1–3.
+  That corresponds to the commands `b1`–`e2`, `08`, `1a`, `30`/`31`.
 
 ## Observed on a real device (FW 2.17, 2026-11-12)
 
@@ -227,6 +315,21 @@ Details and open points: see `CLAUDE.md` → "Beobachtungen am echten Gerät".
     connection is dead
   - the periodic AUR/BUR block does not confirm other commands (it also
     contains `VA`, `PA`, `IN`)
+
+### Speaker table check against the device (2026-11-12)
+
+Spot check of Table 3 against the device (user A, layout `12.1.10`):
+- `37` listed 16 designators: `ACH1…ACH16` = L R C SW Lss Rss Lb Rb Lw Rw Lh
+  Rh Ltf Rtf Ltm Rtm. All of them are in Table 3.
+- Mapped via Table 3 they give IDs 1 2 3 4 7 8 9 10 13 14 25 26 31 32 33 34.
+- `ae` (visible, without `00`) and `af` (active, without `00`) returned
+  **exactly the same 16 IDs**. No speaker was muted.
+- The older capture with layout `7.1.6a` is consistent too: the visible
+  heights were 22 24 25 26 27 28 = Ch T Lh Rh Lhs Rhs.
+
+`ae` and `af` each answered with one packet. The answer to `af` also contains
+`ALL=…`, `TEST=…` and **`MODE=…`**, so `af` is the way to query the mode
+(SVS/AV/MIX). `pya16` includes `af` in `refresh()`.
 
 ### Standby and power on (2026-11-12, `tools/a16_standby_test.py`)
 
