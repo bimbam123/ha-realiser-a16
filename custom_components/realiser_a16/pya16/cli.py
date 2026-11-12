@@ -38,7 +38,7 @@ def _print_change(state, changed: set[str]) -> None:
 
 async def _run(args: argparse.Namespace) -> int:
     client = A16Client(
-        args.host, args.port, refresh_on_connect=args.command in ("state", "monitor")
+        args.host, args.port, refresh_on_connect=args.command == "monitor"
     )
     await client.start()
     try:

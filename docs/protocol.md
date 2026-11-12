@@ -194,12 +194,42 @@ Details and open points: see `CLAUDE.md` → "Beobachtungen am echten Gerät".
   first connection is active.
 - Inactivity timeout counts client-sent data only. After it expires (~120 s on
   the test device) the A16 stops pushing and drops the connection silently
-  (no FIN). The next write fails with a reset. Use a keepalive below 30 s
-  plus a no-data watchdog.
+  (no FIN). The next write fails with a reset. Use a keepalive below 30 s.
+
+### Keepalive test (2026-11-12, 6 min, `2e` every 20 s)
+
+- **The connection stays up well past the ~120 s timeout:** pushes continued
+  for the full 366 s (290 packets, largest gap 1.86 s), no reset, no EOF.
+  `2e` resets the inactivity timer.
+- 17 of 19 keepalives answered with `PWR=ON`, response time 0.59–1.35 s
+  (median 0.71 s).
+- The 2 misses had different causes:
+  1. the `2e` sent immediately after connecting was ignored. The first push
+     arrived only 1.6 s after the connect, so the A16 needs a moment before it
+     accepts commands.
+  2. one `2e` at 220 s was dropped although the connection was healthy and the
+     pushes continued.
+
+### Dropped commands
+
+- The A16 occasionally drops a command without answering, on a healthy
+  connection. Observed rate: 1 of 18 keepalives (20 s spacing) and 2–3 of 28
+  queries in quick succession (0.05–0.5 s gap). With a 1 s gap 0 of 28 were
+  dropped, but that sample is small and makes a refresh take ~26 s instead of
+  ~15 s.
+- Commands right after a (re)connect are dropped more often.
+- Response times are usually 0.6–1.5 s, occasionally up to ~2.7 s (`64`).
+- Consequences in `pya16`:
+  - send commands only after the first packet arrives (max. 3 s)
+  - retry idempotent commands (queries, power, source, preset) once
+  - never retry toggles and steps (volume, mute, IR keys)
+  - a missed keepalive is retried once; only two misses in a row mean the
+    connection is dead
+  - the periodic AUR/BUR block does not confirm other commands (it also
+    contains `VA`, `PA`, `IN`)
 
 ## Known open questions
 
-- Is `2e` as keepalive enough to reset the inactivity timer? (Expected yes,
-  since any client data seems to count. Not yet tested over > 120 s.)
 - Does the push behaviour change with *TCP slave response* disabled?
+- Does the A16 still answer and push in standby?
 - Upper/lower case handling of command codes.

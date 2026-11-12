@@ -188,6 +188,23 @@ def speaker_command(speaker_id: int) -> str:
     return f"{0xB0 + speaker_id:02x}"
 
 
+def is_idempotent(code: str) -> bool:
+    """True if sending ``code`` twice has the same effect as sending it once.
+
+    Queries, power on/standby, source and preset selection are; IR keys
+    (toggles, volume steps, menu navigation) and speaker selection are not.
+    """
+    code = normalize_code(code)
+    value = int(code, 16)
+    return (
+        code in _FIXED_RESPONSES
+        or code in SOURCES.values()
+        or 0x70 <= value <= 0x7F
+        or 0x90 <= value <= 0x9F
+        or code in (CMD_SPEAKER_VISIBILITY, CMD_SPEAKER_STATUS)
+    ) and code != CMD_RESET_METERS
+
+
 def expected_keys(code: str) -> tuple[str, ...]:
     """Response keys that confirm ``code`` was processed (empty if unknown)."""
     code = normalize_code(code)

@@ -36,6 +36,7 @@ from .protocol import (
     User,
     encode_command,
     expected_keys,
+    is_idempotent,
     normalize_code,
     preset_command,
 )
@@ -47,6 +48,7 @@ StateListener = Callable[[A16State, set[str]], None]
 ConnectionListener = Callable[[bool], None]
 
 _DEFAULT = object()
+_INFO_BLOCK_KEYS = frozenset({"AUR", "BUR"})
 
 
 class A16Error(Exception):
@@ -96,10 +98,16 @@ class A16Client:
         backoff_initial: float = 1.0,
         backoff_max: float = 60.0,
         refresh_on_connect: bool = True,
+        keepalive_retries: int = 1,
+        ready_timeout: float = 3.0,
+        command_retries: int = 1,
     ) -> None:
+        self.command_retries = command_retries
         self.host = host
         self.port = port
         self.keepalive_interval = keepalive_interval
+        self.keepalive_retries = keepalive_retries
+        self.ready_timeout = ready_timeout
         self.response_timeout = response_timeout
         self.connect_timeout = connect_timeout
         self.command_gap = command_gap
@@ -168,6 +176,7 @@ class A16Client:
         *,
         expect: Iterable[str] | None | object = _DEFAULT,
         timeout: float | None = None,
+        retries: int | None = None,
     ) -> dict[str, str | None]:
         """Queue a command and wait for its response.
 
@@ -175,16 +184,35 @@ class A16Client:
         (empty for commands without known response). Raises
         A16ConnectionError when not connected and A16TimeoutError when the
         answer does not arrive within ``timeout`` (default response_timeout).
+
+        The A16 occasionally drops a command, so idempotent commands
+        (queries, power, source, preset) are retried ``retries`` times
+        (default ``command_retries``). Toggles and steps are never retried
+        automatically, since a late answer would make them apply twice.
         """
         code = normalize_code(code)
         keys = expected_keys(code) if expect is _DEFAULT else (expect or ())
+        if retries is None:
+            retries = self.command_retries if is_idempotent(code) else 0
+        for attempt in range(retries + 1):
+            try:
+                return await self._send_once(code, keys, timeout)
+            except A16TimeoutError:
+                if attempt == retries:
+                    raise
+                _LOGGER.debug("No answer to %s, retrying", code)
+        raise AssertionError("unreachable")
+
+    async def _send_once(
+        self, code: str, keys: Iterable[str], timeout: float | None
+    ) -> dict[str, str | None]:
         if self._queue is None or not self.connected:
             raise A16ConnectionError("Not connected to the A16")
         future: asyncio.Future = asyncio.get_running_loop().create_future()
         await self._queue.put(
             _Request(
                 code,
-                frozenset(keys),  # type: ignore[arg-type]
+                frozenset(keys),
                 self.response_timeout if timeout is None else timeout,
                 future,
             )
@@ -297,7 +325,7 @@ class A16Client:
         self._set_connected(True)
         tasks = [
             asyncio.create_task(self._reader(reader, parser, healthy)),
-            asyncio.create_task(self._worker(writer)),
+            asyncio.create_task(self._worker(writer, healthy)),
             asyncio.create_task(self._keepalive()),
         ]
         refresh_task = (
@@ -336,8 +364,14 @@ class A16Client:
                 healthy.set()
                 self._handle_packet(packet)
 
-    async def _worker(self, writer: asyncio.StreamWriter) -> None:
+    async def _worker(self, writer: asyncio.StreamWriter, ready: asyncio.Event) -> None:
         assert self._queue is not None
+        # The A16 ignores commands sent right after connecting; its first push
+        # (~1.6 s after connect) shows it is ready. Proceed anyway after
+        # ready_timeout (e.g. if it does not push in standby).
+        with contextlib.suppress(TimeoutError):
+            async with asyncio.timeout(self.ready_timeout):
+                await ready.wait()
         while True:
             req = await self._queue.get()
             if req.future.done():  # caller gave up
@@ -373,20 +407,38 @@ class A16Client:
             await asyncio.sleep(self.command_gap)
 
     async def _keepalive(self) -> None:
+        # The A16 occasionally drops a single command on a healthy connection
+        # (1 of 18 in a 6 min test), so one miss is retried immediately.
         while True:
             await asyncio.sleep(self.keepalive_interval)
-            try:
-                await self.send_command(
-                    CMD_POWER_STATUS, expect=("PWR",), timeout=self.response_timeout
-                )
-            except A16TimeoutError as err:
-                raise _ConnectionLost("Keepalive not answered") from err
+            for attempt in range(self.keepalive_retries + 1):
+                try:
+                    await self.send_command(
+                        CMD_POWER_STATUS,
+                        expect=("PWR",),
+                        timeout=self.response_timeout,
+                        retries=0,  # retried by the loop below
+                    )
+                    break
+                except A16TimeoutError as err:
+                    if attempt == self.keepalive_retries:
+                        raise _ConnectionLost("Keepalive not answered") from err
+                    _LOGGER.debug("Keepalive not answered, retrying")
 
     # --- packet handling -------------------------------------------------------
 
     def _handle_packet(self, packet: Packet) -> None:
         waiter = self._waiter
-        if waiter is not None and not waiter.future.done():
+        keys = {f.key for f in packet}
+        # The A16 pushes the full user info block (AUR.../BUR...) about once a
+        # second. It also contains VA/PA/IN, so it must not confirm e.g. a
+        # dropped volume step; it only counts for the info queries themselves.
+        is_info_block = bool(keys & _INFO_BLOCK_KEYS)
+        if (
+            waiter is not None
+            and not waiter.future.done()
+            and (not is_info_block or waiter.expect & _INFO_BLOCK_KEYS)
+        ):
             for f in packet:
                 if f.key in waiter.expect:
                     waiter.collected[f.key] = f.value

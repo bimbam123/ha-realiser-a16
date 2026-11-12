@@ -69,6 +69,11 @@ class FakeA16:
         self.rejected = 0
         self.silent = False
         self.ignore: set[str] = set()
+        # code -> number of next occurrences to swallow (real A16 drops ~5 %)
+        self.drop_next: dict[str, int] = {}
+        # Like the real device: commands before the first push are ignored.
+        self.ignore_before_first_push = True
+        self.ignored_early: list[str] = []
         self._server: asyncio.Server | None = None
         self.port = 0
 
@@ -105,11 +110,14 @@ class FakeA16:
         self.active += 1
         self.max_active = max(self.max_active, self.active)
 
+        pushed = asyncio.Event()
+
         async def pusher():
             while True:
                 await asyncio.sleep(self.push_interval)
                 if not self.silent:
                     writer.write(self.push_packet)
+                    pushed.set()
 
         push_task = asyncio.create_task(pusher())
         try:
@@ -119,6 +127,12 @@ class FakeA16:
                     break
                 code = line.strip().decode()
                 self.received.append(code)
+                if self.ignore_before_first_push and not pushed.is_set():
+                    self.ignored_early.append(code)
+                    continue
+                if self.drop_next.get(code, 0) > 0:
+                    self.drop_next[code] -= 1
+                    continue
                 if self.silent or code in self.ignore:
                     continue
                 await asyncio.sleep(0.01)

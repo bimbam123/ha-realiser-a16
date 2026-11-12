@@ -33,8 +33,13 @@ einzelne Seiten der PDF lesen (`pages`).
    zentralen State übernommen. Der A16 schickt mit „TCP slave response“ auch
    unaufgefordert Felder.
 4. **Genau eine persistente Verbindung** pro Gerät. Reconnect mit
-   exponentiellem Backoff. Keepalive (z. B. `2e`) in einem Intervall unter
-   dem kleinsten Inaktivitäts-Timeout des A16 (30 s).
+   exponentiellem Backoff. Keepalive `2e` alle 20 s. Ein verpasster Keepalive
+   wird sofort wiederholt, erst zwei Fehlschläge hintereinander bedeuten eine
+   tote Verbindung. (Der A16 verschluckt gelegentlich einzelne Befehle, siehe
+   `docs/protocol.md` → „Dropped commands“.)
+4a. Erst senden, wenn nach dem Verbinden das erste Paket angekommen ist.
+   Idempotente Befehle einmal wiederholen, Toggles und Schritte (Lautstärke,
+   Mute, IR-Tasten) **nie** automatisch wiederholen.
 5. Befehle werden über eine Queue **nacheinander** gesendet, mit kurzem Abstand
    und ohne Flooding.
 6. Wertebereiche einhalten: Lautstärke 27–99, Presets 1–16, Speaker-ID 1–50,
@@ -105,10 +110,10 @@ bedient. Lauf 2 (`…-133219-…`) lief ohne Bedienung und ist die Referenz.
   (Der Timeout am Gerät steht vermutlich auf 120 s, einstellbar sind
   30–250 s.)
 - → **Keepalive** (`2e`) deutlich unter 30 s senden, damit jede
-  Timeout-Einstellung abgedeckt ist.
-- → Zusätzlich ein **Watchdog**: kommt einige Sekunden lang kein Push mehr,
-  gilt die Verbindung als tot, und es folgt ein Reconnect. Auf EOF zu warten
-  reicht nicht.
+  Timeout-Einstellung abgedeckt ist. Bestätigt: Mit `2e` alle 20 s blieb die
+  Verbindung 6 Minuten lang stabil (Details in `docs/protocol.md`).
+- → Tote Verbindungen erkennt der Keepalive (kein `PWR=` auch nach einer
+  Wiederholung). Auf EOF zu warten reicht nicht.
 
 ## Befehle
 
