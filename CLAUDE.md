@@ -71,7 +71,13 @@ bedient. Lauf 2 (`…-133219-…`) lief ohne Bedienung und ist die Referenz.
 - **Leere Felder** (`\x00\x00`) kommen vor, z. B. in der Antwort auf `64`.
 
 **Pushes**
-- **Ohne Anfrage pusht der A16 laufend Status**, etwa alle 0,9–1,4 s, den
+- **Nicht auf periodische Pushes verlassen.** Im Standby gibt es gar keine,
+  und nach einem Boot kamen sie nur noch ~5 s nach jedem Befehl. Außerdem
+  fehlte dem User-A-Block dann das `AUR=` (siehe `docs/protocol.md` →
+  „Standby and power on“).
+- **Einschalten aus dem Standby dauert ~65 s:** `PWR=BOOT`, dann ~60 s keine
+  Antworten, danach trennt der A16 die TCP-Verbindung selbst.
+- In den ersten Läufen pushte der A16 ohne Anfrage laufend Status, etwa alle 0,9–1,4 s, den
   kompletten User-A-Block (`AUR … USER`). Das beginnt schon direkt nach dem
   Verbinden.
 - Bei Bedienung von Hand kommen sofort Einzelfelder (`VA=56`) und

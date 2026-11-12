@@ -228,8 +228,44 @@ Details and open points: see `CLAUDE.md` → "Beobachtungen am echten Gerät".
   - the periodic AUR/BUR block does not confirm other commands (it also
     contains `VA`, `PA`, `IN`)
 
+### Standby and power on (2026-11-12, `tools/a16_standby_test.py`)
+
+**Standby (`2d`):**
+- answered with `PWR=STANDBY` after ~0.65 s
+- in standby the connection stays up
+- `2e` keepalives are answered reliably with `PWR=STANDBY` (6/6, ~0.5 s)
+- there are **no pushes at all** in standby: only the answers to `2e`
+
+**Power on (`2c`) from standby:**
+
+| after `2c` | event |
+|---|---|
+| 0.5 s | `PWR=BOOT` |
+| 0.5–60 s | the A16 answers **nothing**; all keepalives unanswered |
+| ~60.7 s | the A16 **resets the TCP connection** (next read fails with a reset) |
+| 61.7 s | reconnect; `2e` answered immediately with `PWR=ON` (~0.7 s) |
+| ~65 s | first user A block (3.7 s after the reconnect) |
+
+**After the boot** the push behaviour was different from before:
+- no periodic ~1 s pushes; a user A block came only ~5 s after each command
+- that block started with a **corrupted first field** (`" 1"` instead of
+  `"AUR=User 1"`), so it must not be identified by `AUR` alone
+- `pya16` therefore treats a packet with `AUR`/`BUR`/`AROOM`/`BROOM` as an
+  info block, which does not confirm other commands
+
+Why the periodic pushes happen at some times and not at others is unknown
+(maybe linked to the display/menu state or head tracking). Clients must not
+rely on them.
+
+**Consequences in `pya16`:** while the state is `PWR=BOOT`, unanswered
+keepalives do not end the connection; the device's own reset ends it. A
+`boot_timeout` (120 s) is the safety net. The reconnect follows after 1 s,
+because the previous connection was healthy.
+
 ## Known open questions
 
 - Does the push behaviour change with *TCP slave response* disabled?
-- Does the A16 still answer and push in standby?
+- What triggers the periodic ~1 s pushes, and why were they missing after
+  the boot?
+- What happens on `2c` while already on, and on `2d` during the boot?
 - Upper/lower case handling of command codes.

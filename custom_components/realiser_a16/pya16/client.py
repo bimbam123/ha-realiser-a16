@@ -49,6 +49,9 @@ ConnectionListener = Callable[[bool], None]
 
 _DEFAULT = object()
 _INFO_BLOCK_KEYS = frozenset({"AUR", "BUR"})
+# After a boot the A16 sends the user A block with a corrupted first field
+# (" 1" instead of "AUR=User 1"), so the block is also recognised by these.
+_INFO_BLOCK_MARKERS = _INFO_BLOCK_KEYS | {"AROOM", "BROOM"}
 
 
 class A16Error(Exception):
@@ -101,7 +104,10 @@ class A16Client:
         keepalive_retries: int = 1,
         ready_timeout: float = 3.0,
         command_retries: int = 1,
+        boot_timeout: float = 120.0,
     ) -> None:
+        self.boot_timeout = boot_timeout
+        self._boot_since: float | None = None
         self.command_retries = command_retries
         self.host = host
         self.port = port
@@ -421,9 +427,22 @@ class A16Client:
                     )
                     break
                 except A16TimeoutError as err:
+                    if self._booting():
+                        # After 2c the A16 reports PWR=BOOT, answers nothing
+                        # for ~60 s and then resets the TCP connection itself.
+                        _LOGGER.debug("Keepalive not answered while booting")
+                        break
                     if attempt == self.keepalive_retries:
                         raise _ConnectionLost("Keepalive not answered") from err
                     _LOGGER.debug("Keepalive not answered, retrying")
+
+    def _booting(self) -> bool:
+        """True while the A16 reported PWR=BOOT less than boot_timeout ago."""
+        return (
+            self.state.power == "BOOT"
+            and self._boot_since is not None
+            and asyncio.get_running_loop().time() - self._boot_since < self.boot_timeout
+        )
 
     # --- packet handling -------------------------------------------------------
 
@@ -433,7 +452,7 @@ class A16Client:
         # The A16 pushes the full user info block (AUR.../BUR...) about once a
         # second. It also contains VA/PA/IN, so it must not confirm e.g. a
         # dropped volume step; it only counts for the info queries themselves.
-        is_info_block = bool(keys & _INFO_BLOCK_KEYS)
+        is_info_block = bool(keys & _INFO_BLOCK_MARKERS)
         if (
             waiter is not None
             and not waiter.future.done()
@@ -449,6 +468,12 @@ class A16Client:
                 waiter.future.set_result(waiter.collected)
 
         changed = self.state.apply_packet(packet)
+        if "power" in changed:
+            self._boot_since = (
+                asyncio.get_running_loop().time()
+                if self.state.power == "BOOT"
+                else None
+            )
         if changed:
             for listener in list(self._listeners):
                 try:

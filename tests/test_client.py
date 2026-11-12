@@ -294,3 +294,58 @@ def test_idempotent_classification():
         assert is_idempotent(code), code
     for code in ("30", "31", "32", "1a", "43", "11", "b1", "38"):
         assert not is_idempotent(code), code
+
+
+async def test_boot_does_not_trigger_reconnect_until_device_resets(fake_a16):
+    fake_a16.reset_after_boot = 1.0
+    events = []
+    client = _client(fake_a16, keepalive_interval=0.1, response_timeout=0.2)
+    client.add_connection_listener(events.append)
+    await client.start()
+    try:
+        await client.wait_connected(2)
+        await _wait_for(lambda: client.state.user_a.preset is not None)
+        await client.power_on()
+        assert client.state.power == "BOOT"
+        await asyncio.sleep(0.8)  # several unanswered keepalives while booting
+        assert events == [True]
+        # The fake resets the connection after the boot; the client reconnects.
+        await _wait_for(lambda: events.count(True) >= 2)
+        assert (await client.send_command("2e"))["PWR"] == "ON"
+        assert fake_a16.max_active == 1
+    finally:
+        await client.stop()
+
+
+async def test_boot_timeout_still_detects_dead_connection(fake_a16):
+    fake_a16.reset_after_boot = 3  # device "hangs" longer than boot_timeout
+    events = []
+    client = _client(
+        fake_a16, keepalive_interval=0.1, response_timeout=0.2, boot_timeout=0.5
+    )
+    client.add_connection_listener(events.append)
+    await client.start()
+    try:
+        await client.wait_connected(2)
+        await _wait_for(lambda: client.state.user_a.preset is not None)
+        await client.power_on()
+        await _wait_for(lambda: False in events, timeout=3)
+    finally:
+        await client.stop()
+
+
+async def test_corrupted_info_block_does_not_confirm_volume(fake_a16):
+    # After a boot the A16 sends the user A block without "AUR=" (" 1").
+    fake_a16.push_packet = (
+        b" 1\x00PA=06\x00VA=64\x00AROOM=Room 1\x00ANAME=Subject 1\x00\r"
+    )
+    client = _client(fake_a16)
+    await client.start()
+    try:
+        await client.wait_connected(2)
+        await _wait_for(lambda: client.state.user_a.preset == 6)
+        fake_a16.drop_next["30"] = 1
+        with pytest.raises(A16TimeoutError):
+            await client.volume_up("a")
+    finally:
+        await client.stop()

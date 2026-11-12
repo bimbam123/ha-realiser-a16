@@ -71,6 +71,10 @@ class FakeA16:
         self.ignore: set[str] = set()
         # code -> number of next occurrences to swallow (real A16 drops ~5 %)
         self.drop_next: dict[str, int] = {}
+        # 2c -> PWR=BOOT, then no answers until reset_after_boot s, then the
+        # fake closes the connection (like the real reset) and is ON.
+        self.reset_after_boot: float | None = None
+        self.booting = False
         # Like the real device: commands before the first push are ignored.
         self.ignore_before_first_push = True
         self.ignored_early: list[str] = []
@@ -133,8 +137,20 @@ class FakeA16:
                 if self.drop_next.get(code, 0) > 0:
                     self.drop_next[code] -= 1
                     continue
-                if self.silent or code in self.ignore:
+                if self.silent or code in self.ignore or self.booting:
                     continue
+                if code == "2c" and self.reset_after_boot is not None:
+                    writer.write(b"PWR=BOOT\x00\r")
+                    await writer.drain()
+                    self.booting = True
+                    self.silent = True
+                    await asyncio.sleep(self.reset_after_boot)
+                    self.booting = False
+                    self.silent = False
+                    self.responses["2e"] = b"PWR=ON\x00\r"
+                    break  # closes the connection like the real reset
+                if code == "2d":
+                    self.responses["2e"] = b"PWR=STANDBY\x00\r"
                 await asyncio.sleep(0.01)
                 if (answer := self._answer(code)) is not None:
                     writer.write(answer)
