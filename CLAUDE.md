@@ -189,6 +189,12 @@ bedient. Lauf 2 (`…-133219-…`) lief ohne Bedienung und ist die Referenz.
      `X.Y.Z` setzen und das reguläre Release `vX.Y.Z` erstellen. Der
      Marketplace bietet ein Pre-Release nur an, solange es neuer ist als das
      letzte reguläre Release.
+  4. **README = letztes reguläres Release.** Keine Versionsnummer im
+     README-Text. Doku-Änderungen für neue Funktionen kommen mit dem
+     Release-PR auf `main` (dem PR, der die Version auf `X.Y.Z` setzt), nicht
+     schon mit dem Feature-Code. Vorab Neues in den Release-Notes des
+     Pre-Releases ankündigen. Höchstens ein kurzer Hinweis im README wie
+     „Since vX.Y.Z (currently a pre-release)“.
 - Tests: `pytest` für `pya16` mit den Fixtures und einem nachgebauten A16
   (`tests/conftest.py`). Neue Protokollfälle immer mit Test abdecken.
 - Lint und Format: `ruff check` und `ruff format`.
