@@ -15,19 +15,38 @@ command server (firmware 1.90 or newer).
 
 ## Status
 
-**Early development.** The repository currently contains the integration
-skeleton and the config flow (connection test via the A16 firmware-info
-command). Entities are not implemented yet.
+**Early version (0.2.0).** Tested against one A16 (firmware 2.17) in Home
+Assistant 2026.11. Expect rough edges and please report issues.
 
-Planned:
+### Entities
 
-- Power on / standby and power status
-- Input source selection (eARC, HDMI 1–4, USB, Line, Stereo, Coaxial, Optical)
-- Volume and mute for user A and user B
-- Preset selection (1–16) for user A and user B
-- Sensors for room, speaker layout, decoder, upmixer, head-tracker mode, firmware
-- Buttons for the IR remote keys
-- Live updates pushed by the A16 ("TCP slave response")
+| Entity | What it does |
+|---|---|
+| `media_player` User A | power on / standby, volume 27–99 (set, step), mute, source selection (eARC, HDMI 1–4, USB, Line, Stereo, Coaxial, Optical) |
+| `select` Preset A | preset 1–16; a preset shows its room/subject name once it has been active |
+| `sensor` Mode | SVS / AV / MIX |
+| `sensor` Head tracking mode | e.g. Gyro |
+| `sensor` Firmware | diagnostic |
+
+Changes made with the IR remote are pushed by the A16 and show up in Home
+Assistant right away (with *TCP slave response* enabled).
+
+### Good to know
+
+- **One controller at a time:** the A16 accepts only one TCP connection.
+  While Home Assistant is connected, other control apps (e.g. Centro
+  Control) cannot connect, and the other way round. After another app
+  disconnects, the A16 may refuse new connections for about a minute.
+- **Volume is set step by step:** the protocol has no absolute volume
+  command and the A16 accepts about one command per second, so a large
+  volume change takes a while. It runs in the background; a newer target
+  replaces an older one.
+- **Power on takes ~65 s:** while the A16 boots, the player shows *on* with
+  the attribute `power_state: boot`.
+- **Mute state:** the A16 reports it only when it is toggled. Until then it is
+  unknown.
+- User B, IR remote keys and a dedicated sidebar panel are planned, see
+  [docs/roadmap.md](docs/roadmap.md).
 
 ## Requirements
 
