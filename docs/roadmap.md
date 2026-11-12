@@ -26,12 +26,12 @@ plans, not promises.
 - "Reconfigure" for IP address and port (replaces the port option)
 - Diagnostics download with connection statistics
 
-## v0.2.2 – one control per function
+## v0.2.2 – volume like on the A16 display
 
-- Volume per user only as `number` (27–99, the values shown on the A16);
-  the per-user media players (volume in %) are removed
-- Mute per user as `switch`
-- Old user media player entities are removed from the entity registry
+- The user players show the volume 1:1 with the A16 display (64 = 64 %,
+  range 27–99); volume up/down is exactly one A16 step
+- The number entities "Volume A/B" of v0.2.1 are removed (duplicates); their
+  registry entries are cleaned up on setup
 
 ## v0.3 – Realiser panel and dashboard cards
 

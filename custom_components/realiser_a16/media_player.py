@@ -1,7 +1,11 @@
-"""Media player "Realiser A16": power and source of the whole device.
+"""Media players of the Realiser A16.
 
-Volume and mute per user are number and switch entities: a media player can
-only show the volume in percent, while everyone knows the A16 values 27-99.
+- "Realiser A16" (device): power and source, which apply to the whole device
+- "User A" / "User B": volume and mute per user; on/off follows the device
+
+The volume is mapped 1:1: the A16 value 64 is shown as 64 %, so Home
+Assistant shows the same numbers as the A16 display (27-99). Values below 27
+are raised to 27.
 """
 
 from __future__ import annotations
@@ -19,12 +23,23 @@ from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import A16ConfigEntry
-from .const import DOMAIN, SOURCE_NAMES
+from .const import DOMAIN, SOURCE_NAMES, USERS
 from .entity import A16Entity
+from .pya16.protocol import VOLUME_MAX, VOLUME_MIN
 
 PARALLEL_UPDATES = 0
 
 _SOURCE_BY_NAME = {name: value for value, name in SOURCE_NAMES.items()}
+
+
+def volume_to_level(volume: int) -> float:
+    """A16 value -> HA volume level (1:1, 64 -> 0.64)."""
+    return volume / 100
+
+
+def level_to_volume(level: float) -> int:
+    """HA volume level -> A16 value, limited to 27-99."""
+    return max(VOLUME_MIN, min(VOLUME_MAX, round(level * 100)))
 
 
 def power_state(power: str | None) -> MediaPlayerState | None:
@@ -41,7 +56,13 @@ async def async_setup_entry(
     entry: A16ConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    async_add_entities([A16DevicePlayer(entry.runtime_data)])
+    coordinator = entry.runtime_data
+    async_add_entities(
+        [
+            A16DevicePlayer(coordinator),
+            *(A16UserPlayer(coordinator, user) for user in USERS),
+        ]
+    )
 
 
 class A16DevicePlayer(A16Entity, MediaPlayerEntity):
@@ -97,3 +118,62 @@ class A16DevicePlayer(A16Entity, MediaPlayerEntity):
         await self.coordinator.async_command(
             self.coordinator.client.select_source(value)
         )
+
+
+class A16UserPlayer(A16Entity, MediaPlayerEntity):
+    """Volume and mute of one user. On/off follows the device."""
+
+    _attr_device_class = MediaPlayerDeviceClass.SPEAKER
+    _attr_supported_features = (
+        MediaPlayerEntityFeature.VOLUME_SET
+        | MediaPlayerEntityFeature.VOLUME_STEP
+        | MediaPlayerEntityFeature.VOLUME_MUTE
+    )
+    _attr_volume_step = 0.01  # one A16 step
+
+    def __init__(self, coordinator, user: str) -> None:
+        # Same unique IDs (and entity IDs) as v0.2.0/v0.2.1.
+        super().__init__(coordinator, f"user_{user}_player")
+        self._user = user
+        self._attr_translation_key = f"user_{user}"
+
+    @property
+    def _us(self):
+        return self.state_data.user(self._user)
+
+    @property
+    def state(self) -> MediaPlayerState | None:
+        return power_state(self.state_data.power)
+
+    @property
+    def volume_level(self) -> float | None:
+        volume = self._us.volume
+        return None if volume is None else volume_to_level(volume)
+
+    @property
+    def is_volume_muted(self) -> bool | None:
+        return self._us.muted
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        us = self._us
+        return {
+            "volume_raw": us.volume,
+            "preset": us.preset,
+            "room": us.room,
+            "subject": us.subject,
+            "layout": us.layout,
+            "user_name": us.name,
+        }
+
+    async def async_set_volume_level(self, volume: float) -> None:
+        await self.coordinator.async_set_volume(self._user, level_to_volume(volume))
+
+    async def async_volume_up(self) -> None:
+        await self.coordinator.async_volume_step(self._user, up=True)
+
+    async def async_volume_down(self) -> None:
+        await self.coordinator.async_volume_step(self._user, up=False)
+
+    async def async_mute_volume(self, mute: bool) -> None:
+        await self.coordinator.async_set_mute(self._user, mute)

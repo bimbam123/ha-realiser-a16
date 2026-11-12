@@ -34,9 +34,8 @@ async def test_entities_unavailable_while_disconnected(hass, setup_integration):
     assert hass.states.get(ENTITY).state == STATE_UNAVAILABLE
     for entity in (
         "media_player.realiser_a16",
-        "number.realiser_a16_volume_a",
+        "media_player.realiser_a16_user_b",
         "select.realiser_a16_preset_b",
-        "switch.realiser_a16_mute_b",
         "sensor.realiser_a16_mode",
     ):
         assert hass.states.get(entity).state == STATE_UNAVAILABLE
@@ -93,20 +92,23 @@ async def test_entities_created(hass, setup_integration, config_entry):
     )
     assert sorted(e.entity_id for e in entries) == [
         "media_player.realiser_a16",
-        "number.realiser_a16_volume_a",
-        "number.realiser_a16_volume_b",
+        "media_player.realiser_a16_user_a",
+        "media_player.realiser_a16_user_b",
         "select.realiser_a16_preset_a",
         "select.realiser_a16_preset_b",
         "sensor.realiser_a16_firmware",
         "sensor.realiser_a16_head_tracking_mode",
         "sensor.realiser_a16_mode",
-        "switch.realiser_a16_mute_a",
-        "switch.realiser_a16_mute_b",
     ]
+    # the user players keep the unique IDs of v0.2.0/v0.2.1
+    from .conftest import SERIAL
+
+    player_a = er.async_get(hass).async_get("media_player.realiser_a16_user_a")
+    assert player_a.unique_id == f"{SERIAL}_user_a_player"
 
 
-async def test_old_user_players_are_removed(hass, mock_client, config_entry):
-    """v0.2.0/v0.2.1 had media players per user; v0.2.2 removes them."""
+async def test_old_volume_numbers_are_removed(hass, mock_client, config_entry):
+    """v0.2.1 had number entities "Volume A/B"; v0.2.2 removes them."""
     from homeassistant.helpers import entity_registry as er
 
     from .conftest import SERIAL
@@ -115,18 +117,18 @@ async def test_old_user_players_are_removed(hass, mock_client, config_entry):
     registry = er.async_get(hass)
     for user in ("a", "b"):
         registry.async_get_or_create(
-            "media_player",
+            "number",
             "realiser_a16",
-            f"{SERIAL}_user_{user}_player",
+            f"{SERIAL}_volume_{user}",
             config_entry=config_entry,
-            suggested_object_id=f"realiser_a16_user_{user}",
+            suggested_object_id=f"realiser_a16_volume_{user}",
         )
-    assert registry.async_get("media_player.realiser_a16_user_a")
+    assert registry.async_get("number.realiser_a16_volume_a")
     assert await hass.config_entries.async_setup(config_entry.entry_id)
     await hass.async_block_till_done()
-    assert registry.async_get("media_player.realiser_a16_user_a") is None
-    assert registry.async_get("media_player.realiser_a16_user_b") is None
-    assert hass.states.get("switch.realiser_a16_mute_a") is not None
+    assert registry.async_get("number.realiser_a16_volume_a") is None
+    assert registry.async_get("number.realiser_a16_volume_b") is None
+    assert hass.states.get("media_player.realiser_a16_user_a") is not None
 
 
 async def test_diagnostics(hass, setup_integration, config_entry):

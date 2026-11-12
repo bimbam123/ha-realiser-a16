@@ -23,12 +23,15 @@ Assistant 2026.11. Expect rough edges and please report issues.
 | Entity | What it does |
 |---|---|
 | `media_player` Realiser A16 | power on / standby and source selection (eARC, HDMI 1–4, USB, Line, Stereo, Coaxial, Optical) for the whole device |
-| `number` Volume A / Volume B | volume per user, as shown on the A16 (27–99) |
-| `switch` Mute A / Mute B | mute per user (unknown until it was toggled once) |
+| `media_player` User A / User B | volume and mute per user; on/off follows the device |
 | `select` Preset A / Preset B | preset 1–16; a preset shows its room/subject name once it has been active |
 | `sensor` Mode | SVS / AV / MIX |
 | `sensor` Head tracking mode | e.g. Gyro |
 | `sensor` Firmware | diagnostic |
+
+The volume of the user players is shown **1:1 with the A16 display**: 64 on
+the A16 is shown as 64 % in Home Assistant. The A16 range is 27–99; a lower
+value is raised to 27. Volume up/down is exactly one A16 step.
 
 Changes made with the IR remote are pushed by the A16 and show up in Home
 Assistant right away (with *TCP slave response* enabled).

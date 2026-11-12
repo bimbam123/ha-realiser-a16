@@ -37,12 +37,12 @@
     }
   },
   "entity": {
-    "number": {
-      "volume_a": {
-        "name": "Lautstärke A"
+    "media_player": {
+      "user_a": {
+        "name": "User A"
       },
-      "volume_b": {
-        "name": "Lautstärke B"
+      "user_b": {
+        "name": "User B"
       }
     },
     "select": {
@@ -67,14 +67,6 @@
       },
       "firmware": {
         "name": "Firmware"
-      }
-    },
-    "switch": {
-      "mute_a": {
-        "name": "Stummschaltung A"
-      },
-      "mute_b": {
-        "name": "Stummschaltung B"
       }
     }
   },
