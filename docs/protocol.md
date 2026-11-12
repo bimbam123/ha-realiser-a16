@@ -369,6 +369,29 @@ Consequences in `pya16` / the integration:
 - there is no query for the mute state: after an unanswered toggle the mute
   state becomes **unknown** (`None`) instead of showing a possibly wrong value
 
+### Volume steps need ~2.5 s, user B is pushed (2026-11-12, wired path)
+
+Measured with 3 steps up and 3 down per run (Home Assistant on a wired
+Raspberry Pi had been the client before; the measurement PC is on WLAN):
+
+| gap between steps | applied |
+|---|---|
+| 1.5 s, user A | 2 of 6 |
+| 1.5 s, user B | 4 of 6 |
+| 2.5 s, user A | 6 of 6 |
+| 3.0 s, user A | 6 of 6 |
+
+- Other commands work at 1.2 s; **volume steps need about 2.5 s**. `pya16`
+  uses `min_step_interval = 2.5` s for `30`/`31`/`33`/`34`.
+- In Home Assistant on the wired Pi, step answers came after ~0.3 s, and
+  steps at 1.2 s were also ignored (diagnosed from the HA log).
+
+**User B is pushed when it is operated with the remote:** after each volume
+step `VB=nn` arrives at once and the complete user B block (`BUR … BSPKR`)
+about 1 s later. After a preset change the B block arrives with the new
+`PB`, `BROOM` and `BNAME`. The answer to the select command itself (`90`–`9f`)
+is only `PB=nn`, so the integration queries `a0` after its own preset change.
+
 ### Connecting shortly after another client disconnected
 
 - After a client disconnected (e.g. Home Assistant stopped, a capture tool

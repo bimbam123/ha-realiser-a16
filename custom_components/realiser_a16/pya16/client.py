@@ -158,10 +158,10 @@ class A16Client:
         boot_timeout: float = 120.0,
         min_command_interval: float = 1.2,
         step_confirm_wait: float = 1.0,
-        min_step_interval: float = 1.5,
+        min_step_interval: float = 2.5,
     ) -> None:
-        # Consecutive volume steps need more time than other commands: over a
-        # wired network a third step 1.2 s after the previous one was lost.
+        # Consecutive volume steps need more time than other commands: at
+        # 1.5 s the A16 ignored 2-4 of 6 steps, at 2.5 s and 3.0 s none.
         self.min_step_interval = min_step_interval
         self.stats = A16Stats()
         # The A16 ignores commands sent less than ~1 s after the previous one

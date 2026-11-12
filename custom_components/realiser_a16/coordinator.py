@@ -179,7 +179,8 @@ class A16Coordinator(DataUpdateCoordinator[A16State]):
     async def async_set_volume(self, user: User, target: int) -> None:
         """Set the volume target; stepping runs in the background.
 
-        The A16 has no absolute volume command and each step takes ~0.5-1.5 s,
+        The A16 has no absolute volume command and accepts a step only every
+        ~2.5 s,
         so the call returns immediately. A newer target replaces an older one
         (the latest target wins).
         """

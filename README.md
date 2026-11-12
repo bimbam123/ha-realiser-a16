@@ -45,7 +45,7 @@ Assistant right away (with *TCP slave response* enabled).
   disconnects, the A16 may refuse new connections for about a minute.
 - **Volume is set step by step:** the protocol has no absolute volume
   command and the A16 accepts about one command per second, so a large
-  volume change takes a while (about 1.5 s per step). It runs in the
+  volume change takes a while (about 2.5 s per step). It runs in the
   background; a newer target replaces an older one.
 - **Power on takes ~65 s:** while the A16 boots, the player shows *on* with
   the attribute `power_state: boot`.

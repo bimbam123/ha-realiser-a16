@@ -66,7 +66,7 @@ class MockA16Client:
         self.device_preset_b = 7
         self.response_timeout = 5.0
         self.min_command_interval = 1.2
-        self.min_step_interval = 1.5
+        self.min_step_interval = 2.5
         self.keepalive_interval = 20.0
         self._listeners: list = []
         self._conn_listeners: list = []

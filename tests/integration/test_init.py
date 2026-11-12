@@ -117,7 +117,7 @@ async def test_diagnostics(hass, setup_integration, config_entry):
 
     diag = await async_get_config_entry_diagnostics(hass, config_entry)
     assert diag["connection"]["connected"] is True
-    assert diag["connection"]["settings"]["min_step_interval"] == 1.5
+    assert diag["connection"]["settings"]["min_step_interval"] == 2.5
     assert "commands_sent" in diag["connection"]["stats"]
     assert diag["state"]["firmware"]["serial"] == "**REDACTED**"
     assert diag["state"]["user_a"]["room"] == "**REDACTED**"

@@ -21,7 +21,7 @@ plans, not promises.
 - User B: media player, volume number and preset select; room/subject of B
   are queried with `a0` after a preset change (B is not pushed)
 - Volume numbers 27–99 per user (the media player slider works in %)
-- More robust volume stepping: 1.5 s between steps, up to five ignored steps
+- More robust volume stepping: 2.5 s between steps, up to five ignored steps
   per target
 - "Reconfigure" for IP address and port (replaces the port option)
 - Diagnostics download with connection statistics
