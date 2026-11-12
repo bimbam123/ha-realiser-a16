@@ -5,7 +5,9 @@ from __future__ import annotations
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PORT, EVENT_HOMEASSISTANT_STOP, Platform
 from homeassistant.core import Event, HomeAssistant
+from homeassistant.helpers import entity_registry as er
 
+from .const import DOMAIN
 from .coordinator import A16Coordinator
 from .pya16 import A16Client
 
@@ -14,6 +16,7 @@ PLATFORMS: list[Platform] = [
     Platform.NUMBER,
     Platform.SELECT,
     Platform.SENSOR,
+    Platform.SWITCH,
 ]
 
 type A16ConfigEntry = ConfigEntry[A16Coordinator]
@@ -24,6 +27,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: A16ConfigEntry) -> bool:
     port = entry.options.get(CONF_PORT, entry.data[CONF_PORT])
     client = A16Client(entry.data[CONF_HOST], port)
     coordinator = A16Coordinator(hass, entry, client)
+    _remove_old_user_players(hass, entry)
     await coordinator.async_start()  # raises ConfigEntryNotReady
     entry.runtime_data = coordinator
 
@@ -35,6 +39,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: A16ConfigEntry) -> bool:
     )
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
+
+
+def _remove_old_user_players(hass: HomeAssistant, entry: A16ConfigEntry) -> None:
+    """v0.2.0/v0.2.1 had media players per user; v0.2.2 replaced them by
+    number (volume) and switch (mute) entities."""
+    registry = er.async_get(hass)
+    serial = entry.unique_id or entry.entry_id
+    for user in ("a", "b"):
+        if entity_id := registry.async_get_entity_id(
+            "media_player", DOMAIN, f"{serial}_user_{user}_player"
+        ):
+            registry.async_remove(entity_id)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: A16ConfigEntry) -> bool:

@@ -37,14 +37,6 @@
     }
   },
   "entity": {
-    "media_player": {
-      "user_a": {
-        "name": "User A"
-      },
-      "user_b": {
-        "name": "User B"
-      }
-    },
     "number": {
       "volume_a": {
         "name": "Volume A"
@@ -75,6 +67,14 @@
       },
       "firmware": {
         "name": "Firmware"
+      }
+    },
+    "switch": {
+      "mute_a": {
+        "name": "Mute A"
+      },
+      "mute_b": {
+        "name": "Mute B"
       }
     }
   },

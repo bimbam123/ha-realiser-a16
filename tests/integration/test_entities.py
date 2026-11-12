@@ -5,8 +5,8 @@ from homeassistant.components.media_player import MediaPlayerEntityFeature
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 
 DEVICE = "media_player.realiser_a16"
-PLAYER_A = "media_player.realiser_a16_user_a"
-PLAYER_B = "media_player.realiser_a16_user_b"
+MUTE_A = "switch.realiser_a16_mute_a"
+MUTE_B = "switch.realiser_a16_mute_b"
 VOLUME_A = "number.realiser_a16_volume_a"
 VOLUME_B = "number.realiser_a16_volume_b"
 PRESET_A = "select.realiser_a16_preset_a"
@@ -39,15 +39,13 @@ async def test_power_states(hass, setup_integration):
     client = setup_integration
     client.push(b"PWR=STANDBY")
     await hass.async_block_till_done()
-    for entity in (DEVICE, PLAYER_A, PLAYER_B):
-        assert hass.states.get(entity).state == "off"
+    assert hass.states.get(DEVICE).state == "off"
 
     await _call(hass, "media_player", "turn_on", DEVICE)
     assert client.sent[-1] == "2c"
     st = hass.states.get(DEVICE)
     assert st.state == "on"  # BOOT is shown as on
     assert st.attributes["power_state"] == "boot"
-    assert hass.states.get(PLAYER_B).state == "on"
 
     await _call(hass, "media_player", "turn_on", DEVICE)
     assert client.sent.count("2c") == 1  # no second 2c while booting
@@ -67,39 +65,7 @@ async def test_select_source(hass, setup_integration):
         await _call(hass, "media_player", "select_source", DEVICE, source="VGA")
 
 
-# --- user players: volume and mute ---
-
-
-async def test_user_players_have_no_power_or_source(hass, setup_integration):
-    for entity in (PLAYER_A, PLAYER_B):
-        features = hass.states.get(entity).attributes["supported_features"]
-        assert features & MediaPlayerEntityFeature.VOLUME_SET
-        assert features & MediaPlayerEntityFeature.VOLUME_MUTE
-        assert not features & MediaPlayerEntityFeature.TURN_ON
-        assert not features & MediaPlayerEntityFeature.TURN_OFF
-        assert not features & MediaPlayerEntityFeature.SELECT_SOURCE
-
-
-async def test_user_player_attributes(hass, setup_integration):
-    a = hass.states.get(PLAYER_A).attributes
-    assert a["volume_level"] == pytest.approx((64 - 27) / 72)
-    assert a["volume_raw"] == 64
-    assert a["preset"] == 6
-    b = hass.states.get(PLAYER_B).attributes
-    assert b["volume_raw"] == 65
-    assert b["preset"] == 7
-    assert b["layout"] == "9.1.6"
-
-
-async def test_set_volume_steps_to_target(hass, setup_integration):
-    client = setup_integration
-    await _call(hass, "media_player", "volume_set", PLAYER_A, volume_level=0.5)
-    assert client.state.user_a.volume == 63  # 27 + 0.5 * 72
-    assert client.sent.count("31") == 1  # 64 -> 63
-
-    await _call(hass, "media_player", "volume_set", PLAYER_B, volume_level=0.5)
-    assert client.state.user_b.volume == 63
-    assert client.sent.count("34") == 2  # 65 -> 63
+# --- volume targets ---
 
 
 async def test_latest_volume_target_wins(hass, setup_integration, config_entry):
@@ -126,45 +92,6 @@ async def test_volume_target_gives_up_after_five_failures(hass, setup_integratio
     await _call(hass, "number", "set_value", VOLUME_A, value=70)
     assert client.state.user_a.volume == 64
     assert client.sent.count("30") == 5
-
-
-async def test_volume_step(hass, setup_integration):
-    client = setup_integration
-    await _call(hass, "media_player", "volume_up", PLAYER_A)
-    assert client.sent == ["30"]
-    assert client.state.user_a.volume == 65
-    await _call(hass, "media_player", "volume_down", PLAYER_B)
-    assert client.sent == ["30", "34"]
-    assert client.state.user_b.volume == 64
-
-
-async def test_mute_with_unknown_state_toggles_until_confirmed(hass, setup_integration):
-    client = setup_integration
-    client.device_muted["a"] = True  # device is muted, HA does not know (None)
-    await _call(hass, "media_player", "volume_mute", PLAYER_A, is_volume_muted=True)
-    # first toggle unmuted the device, second toggle muted it again
-    assert client.sent == ["32", "32"]
-    assert hass.states.get(PLAYER_A).attributes["is_volume_muted"] is True
-
-    await _call(hass, "media_player", "volume_mute", PLAYER_A, is_volume_muted=True)
-    assert client.sent == ["32", "32"]  # known state: nothing to do
-
-    await _call(hass, "media_player", "volume_mute", PLAYER_B, is_volume_muted=True)
-    assert client.sent == ["32", "32", "35"]
-    assert hass.states.get(PLAYER_B).attributes["is_volume_muted"] is True
-
-
-async def test_mute_without_answer_becomes_unknown(hass, setup_integration):
-    client = setup_integration
-    await _call(hass, "media_player", "volume_mute", PLAYER_A, is_volume_muted=True)
-    assert hass.states.get(PLAYER_A).attributes["is_volume_muted"] is True
-    client.timeout_codes.add("32")
-    with pytest.raises(HomeAssistantError):
-        await _call(
-            hass, "media_player", "volume_mute", PLAYER_A, is_volume_muted=False
-        )
-    # there is no query command for mute: the state is unknown now
-    assert "is_volume_muted" not in hass.states.get(PLAYER_A).attributes
 
 
 # --- volume numbers ---
@@ -232,3 +159,50 @@ async def test_sensors(hass, setup_integration):
     client.push(b"MODE=AV")
     await hass.async_block_till_done()
     assert hass.states.get("sensor.realiser_a16_mode").state == "av"
+
+
+# --- mute switches ---
+
+
+async def test_mute_switches_start_unknown(hass, setup_integration):
+    # the A16 reports mute only when it is toggled
+    assert hass.states.get(MUTE_A).state == "unknown"
+    assert hass.states.get(MUTE_B).state == "unknown"
+
+
+async def test_mute_with_unknown_state_toggles_until_confirmed(hass, setup_integration):
+    client = setup_integration
+    client.device_muted["a"] = True  # device is muted, HA does not know
+    await _call(hass, "switch", "turn_on", MUTE_A)
+    # first toggle unmuted the device, second toggle muted it again
+    assert client.sent == ["32", "32"]
+    assert hass.states.get(MUTE_A).state == "on"
+
+    await _call(hass, "switch", "turn_on", MUTE_A)
+    assert client.sent == ["32", "32"]  # known state: nothing to do
+
+    await _call(hass, "switch", "turn_off", MUTE_A)
+    assert client.sent == ["32", "32", "32"]
+    assert hass.states.get(MUTE_A).state == "off"
+
+    await _call(hass, "switch", "turn_on", MUTE_B)
+    assert client.sent[-1] == "35"
+    assert hass.states.get(MUTE_B).state == "on"
+
+
+async def test_mute_without_answer_becomes_unknown(hass, setup_integration):
+    client = setup_integration
+    await _call(hass, "switch", "turn_on", MUTE_A)
+    assert hass.states.get(MUTE_A).state == "on"
+    client.timeout_codes.add("32")
+    with pytest.raises(HomeAssistantError):
+        await _call(hass, "switch", "turn_off", MUTE_A)
+    # there is no query command for mute: the state is unknown now
+    assert hass.states.get(MUTE_A).state == "unknown"
+
+
+async def test_mute_pushed_from_remote(hass, setup_integration):
+    client = setup_integration
+    client.push(b"MUTEB=MUTE")
+    await hass.async_block_till_done()
+    assert hass.states.get(MUTE_B).state == "on"
