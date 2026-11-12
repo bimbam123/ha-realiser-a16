@@ -20,7 +20,7 @@ import argparse
 import asyncio
 import json
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 COMMANDS = ["2e", "64", "80", "83", "a0", "37"]
@@ -34,7 +34,7 @@ CAPTURE_DIR = Path(__file__).resolve().parent.parent / "docs" / "captures"
 
 
 def now_iso() -> str:
-    return datetime.now(timezone.utc).astimezone().isoformat(timespec="milliseconds")
+    return datetime.now(UTC).astimezone().isoformat(timespec="milliseconds")
 
 
 def split_fields(data: bytes) -> list[str]:
@@ -116,9 +116,7 @@ async def send(
 async def open_conn(host: str, port: int, cap: Capture, conn: str):
     t = time.monotonic()
     try:
-        reader, writer = await asyncio.wait_for(
-            asyncio.open_connection(host, port), 5
-        )
+        reader, writer = await asyncio.wait_for(asyncio.open_connection(host, port), 5)
     except (OSError, TimeoutError) as err:
         cap.log(conn, "connect_fail", error=repr(err))
         return None, None
@@ -227,6 +225,82 @@ async def main(host: str, port: int, max_idle: float) -> None:
     print(f"\nCapture written to {cap.path}")
 
 
+async def keepalive_test(
+    host: str, port: int, interval: float, duration: float
+) -> None:
+    """Send 2e every ``interval`` s for ``duration`` s on one connection.
+
+    Logs per keepalive the time until PWR= arrives and the largest gap
+    between received chunks, then a final write test.
+    """
+    CAPTURE_DIR.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    cap = Capture(CAPTURE_DIR / f"{stamp}-keepalive.jsonl")
+    cap.log("-", "start", host=host, port=port, interval=interval, duration=duration)
+    reader, writer = await open_conn(host, port, cap, "c1")
+    if reader is None:
+        cap.close()
+        return
+
+    pending: list[float] = []  # send times of keepalives awaiting PWR=
+    stats = {"sent": 0, "answered": 0, "late": 0, "max_gap": 0.0, "eof": False}
+    last_rx = time.monotonic()
+
+    async def read_loop() -> None:
+        nonlocal last_rx
+        buf = b""
+        while True:
+            try:
+                chunk = await reader.read(4096)
+            except (ConnectionResetError, OSError) as err:
+                cap.log("c1", "read_error", error=repr(err))
+                stats["eof"] = True
+                return
+            if not chunk:
+                cap.log("c1", "eof")
+                stats["eof"] = True
+                return
+            now = time.monotonic()
+            stats["max_gap"] = max(stats["max_gap"], now - last_rx)
+            last_rx = now
+            buf += chunk
+            *packets, buf = buf.split(b"\x00\r")
+            for pkt in packets:
+                fields = split_fields(pkt.replace(b"\r", b""))
+                cap.log("c1", "rx", hex=pkt.hex(" "), fields=fields)
+                if any(f.startswith("PWR=") for f in fields) and pending:
+                    rtt = now - pending.pop(0)
+                    stats["answered"] += 1
+                    if rtt > 3:
+                        stats["late"] += 1
+                    cap.log("c1", "keepalive_ok", rtt_s=round(rtt, 3))
+
+    reader_task = asyncio.create_task(read_loop())
+    t_end = time.monotonic() + duration
+    while time.monotonic() < t_end and not stats["eof"]:
+        if pending and time.monotonic() - pending[0] > 3:
+            cap.log(
+                "c1", "keepalive_missed", age_s=round(time.monotonic() - pending[0], 1)
+            )
+            pending.pop(0)
+        pending.append(time.monotonic())
+        stats["sent"] += 1
+        await send(writer, cap, "c1", "2e")
+        await asyncio.sleep(min(interval, max(0, t_end - time.monotonic())))
+    await asyncio.sleep(3)  # let the last answer arrive
+    # Final write test, then watch for an answer.
+    await send(writer, cap, "c1", "2e")
+    pending.append(time.monotonic())
+    stats["sent"] += 1
+    await asyncio.sleep(3)
+    reader_task.cancel()
+    stats["max_gap"] = round(stats["max_gap"], 2)
+    cap.log("c1", "summary", **stats)
+    await close_conn(writer, cap, "c1")
+    cap.close()
+    print(f"\nSummary: {stats}\nCapture written to {cap.path}")
+
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("host")
@@ -243,6 +317,21 @@ if __name__ == "__main__":
         default=[],
         help="command codes to leave out of the sequence, e.g. --skip 80 a0",
     )
+    ap.add_argument(
+        "--keepalive",
+        type=float,
+        metavar="SECONDS",
+        help="keepalive test instead of the capture: send 2e every SECONDS",
+    )
+    ap.add_argument(
+        "--duration",
+        type=float,
+        default=360,
+        help="duration of the keepalive test in seconds (default 360)",
+    )
     args = ap.parse_args()
     COMMANDS = [c for c in COMMANDS if c not in args.skip]
-    asyncio.run(main(args.host, args.port, args.max_idle))
+    if args.keepalive:
+        asyncio.run(keepalive_test(args.host, args.port, args.keepalive, args.duration))
+    else:
+        asyncio.run(main(args.host, args.port, args.max_idle))

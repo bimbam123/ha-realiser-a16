@@ -61,8 +61,8 @@ bedient. Lauf 2 (`…-133219-…`) lief ohne Bedienung und ist die Referenz.
   beginnt das nächste Feld mit `\r` (z. B. `"\rVA=54"`). Felder deshalb
   trimmen (`strip()`).
 - **Es gibt Felder ohne `=`**, z. B. `V00 V01 … A00 A01 …` als
-  Lautsprecher-Sichtbarkeit und -Status. Der Parser darf sie nicht verwerfen.
-  `api.parse_fields` tut das derzeit und muss angepasst werden.
+  Lautsprecher-Sichtbarkeit und -Status. Der Parser behält sie
+  (`Field.value is None`).
 - **Leere Felder** (`\x00\x00`) kommen vor, z. B. in der Antwort auf `64`.
 
 **Pushes**
@@ -110,10 +110,26 @@ bedient. Lauf 2 (`…-133219-…`) lief ohne Bedienung und ist die Referenz.
   gilt die Verbindung als tot, und es folgt ein Reconnect. Auf EOF zu warten
   reicht nicht.
 
+## Befehle
+
+- Testumgebung: `python -m venv .venv`, dann
+  `.venv/Scripts/python -m pip install -r requirements_test.txt`.
+- Tests: `.venv/Scripts/python -m pytest -q`. Die Tests importieren `pya16`
+  direkt (siehe `tests/conftest.py`), Home Assistant ist nicht nötig.
+- Am Gerät ausprobieren: `python tools/a16_cli.py <host> state | monitor |
+  send <code> | …`. Dabei bitte keine andere Steuer-App verbinden, denn der
+  A16 nimmt nur einen Client an.
+- Neue Mitschnitte: `tools/a16_capture.py`. Vor einer Übernahme als
+  Testdaten mit `tools/anonymize_capture.py` anonymisieren.
+
 ## Architektur
 
-- `custom_components/realiser_a16/api.py`: reiner asyncio-Protokoll-Client
-  **ohne HA-Imports** (Parser, Verbindung, Queue, Callbacks).
+- `custom_components/realiser_a16/pya16/`: Protokoll-Bibliothek **ohne
+  HA-Imports**, nur stdlib und relative Imports (später als PyPI-Paket
+  auslagerbar). Sie besteht aus `protocol.py` (Codes, erwartete
+  Antwort-Keys), `parser.py` (Stream → Pakete), `state.py` (`A16State`) und
+  `client.py` (`A16Client`: eine Verbindung, Queue, Keepalive, Reconnect).
+- `api.py`: dünne Schicht für HA (z. B. Geräteprüfung im Config Flow).
 - `coordinator.py`: verbindet den Client mit HA (Push-Updates, Verfügbarkeit).
 - Eine Plattformdatei pro Entitätstyp mit `has_entity_name = True`,
   `DeviceInfo` aus Seriennummer (`A16SN`) und Firmware (`A16FW`).
@@ -123,8 +139,8 @@ bedient. Lauf 2 (`…-133219-…`) lief ohne Bedienung und ist die Referenz.
 
 - Kleine, überprüfbare Schritte. Vor größeren Änderungen einen Plan zeigen.
 - **Commits und Pushes nur nach Rückfrage.**
-- Tests: `pytest` für `api.py` gegen einen Fake-TCP-Server (asyncio). Den
-  Parser mit fragmentierten Paketen testen.
+- Tests: `pytest` für `pya16` mit den Fixtures und einem nachgebauten A16
+  (`tests/conftest.py`). Neue Protokollfälle immer mit Test abdecken.
 - Lint und Format: `ruff check` und `ruff format`.
 - CI (muss grün sein): `hassfest` und `hacs/action` (Marketplace-Validierung).
   Checks nie per `ignore` abschalten, sonst ist der Katalog ausgeschlossen.

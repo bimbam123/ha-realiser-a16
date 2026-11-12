@@ -6,7 +6,7 @@ Firmware, layouts, headphone models, dates and all framing bytes are kept.
 ``hex``/``ascii``/``fields`` are recomputed from the rewritten bytes.
 
 Usage:
-    python tools/anonymize_capture.py docs/captures/<in>.jsonl tests/fixtures/<out>.jsonl
+    python tools/anonymize_capture.py docs/captures/IN.jsonl tests/fixtures/OUT.jsonl
 """
 
 from __future__ import annotations
@@ -98,8 +98,10 @@ def main(src: Path, dst: Path) -> int:
         return 1
     dst.parent.mkdir(parents=True, exist_ok=True)
     dst.write_text(text, encoding="utf-8")
-    print(f"{src.name} -> {dst} ({len(out_lines)} records, "
-          f"{len(anon.mapping)} values replaced, no originals left)")
+    print(
+        f"{src.name} -> {dst} ({len(out_lines)} records, "
+        f"{len(anon.mapping)} values replaced, no originals left)"
+    )
     return 0
 
 
