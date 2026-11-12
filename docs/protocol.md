@@ -273,6 +273,15 @@ confirm, however:
 
 Details and open points: see `CLAUDE.md` → "Beobachtungen am echten Gerät".
 
+> **Test environment:** all measurements so far were made from a PC connected
+> by **WLAN with poor quality**: ping to the A16 34–567 ms, mean 126 ms, no
+> loss (30 pings). Response times below therefore include up to ~0.5 s of
+> network jitter; the device's base latency is ~0.5 s (stable `PWR=STANDBY`
+> answers). Dropped commands are **not** explained by the WLAN: TCP
+> retransmits, and the missed keepalives never got a late answer either. The
+> one connection abort (WinError 121) and one 10 s connect failure may be WLAN
+> related. Repeat timing measurements from a wired host when possible.
+
 - Every packet ends with `\x00\r`; fields may start with `\r` → strip them.
 - Bare fields without `=` exist (`V00`, `A01`, …).
 - The A16 pushes status unsolicited roughly every 0.9–1.4 s.
