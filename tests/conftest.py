@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import importlib.util
 import json
 import sys
 from pathlib import Path
@@ -10,8 +11,17 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
-# Import pya16 directly so the HA-dependent integration __init__ is not loaded.
-sys.path.insert(0, str(ROOT / "custom_components" / "realiser_a16"))
+# Load pya16 as a top-level package straight from its folder, so the
+# HA-dependent integration __init__ is not imported. The integration folder
+# itself must not go on sys.path: its select.py shadows the stdlib "select".
+_PYA16 = ROOT / "custom_components" / "realiser_a16" / "pya16"
+if "pya16" not in sys.modules:
+    _spec = importlib.util.spec_from_file_location(
+        "pya16", _PYA16 / "__init__.py", submodule_search_locations=[str(_PYA16)]
+    )
+    _module = importlib.util.module_from_spec(_spec)
+    sys.modules["pya16"] = _module
+    _spec.loader.exec_module(_module)
 
 FIXTURES = ROOT / "tests" / "fixtures"
 
