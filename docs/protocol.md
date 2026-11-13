@@ -138,7 +138,7 @@ meter screenshot Fig. 11, not yet seen on the device).
 `AUR` user name · `PA` preset no. · `VA` volume · `TRI` tri-level (1–3) ·
 `AROOM` room · `ANAME` subject · `ASPKR` layout · `AQFILE` HPEQ file ·
 `AQNAME` HPEQ subject · `AQTYPE` HPEQ filter type · `AQMOD` headphone model ·
-`ATACT` tactile ON/OFF · `IN` source · `DEC` active decoder · `LM` listening
+`ATACT` tactile (`ON`, or empty when the room has no tactile output; `OFF` never observed on FW 2.17) · `IN` source · `DEC` active decoder · `LM` listening
 mode · `UMIX` upmixer · `HTMODE` head-tracker mode · `LEG` Dolby/DTS legacy ·
 `USER` single/dual user mode.
 

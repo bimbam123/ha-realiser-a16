@@ -164,6 +164,14 @@ async def test_format_and_preset_sensors(hass, setup_integration):
         hass.states.get("binary_sensor.realiser_a16_tactile_b").state == STATE_UNKNOWN
     )
 
+    # empty ATACT=: the room has no tactile output -> off, not unknown
+    client.push(b"ATACT=")
+    await hass.async_block_till_done()
+    assert hass.states.get("binary_sensor.realiser_a16_tactile_a").state == "off"
+    client.push(b"ATACT=ON")
+    await hass.async_block_till_done()
+    assert hass.states.get("binary_sensor.realiser_a16_tactile_a").state == "on"
+
     client.push(b"DEC=Dolby Atmos\x00LM=7.1.4")
     await hass.async_block_till_done()
     assert hass.states.get("sensor.realiser_a16_decoder").state == "Dolby Atmos"
