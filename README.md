@@ -2,6 +2,12 @@
 
 # Smyth Realiser A16 for Home Assistant (unofficial)
 
+[![Release](https://img.shields.io/github/v/release/bimbam123/ha-realiser-a16)](https://github.com/bimbam123/ha-realiser-a16/releases)
+[![Validate](https://github.com/bimbam123/ha-realiser-a16/actions/workflows/validate.yaml/badge.svg)](https://github.com/bimbam123/ha-realiser-a16/actions/workflows/validate.yaml)
+[![Hassfest](https://github.com/bimbam123/ha-realiser-a16/actions/workflows/hassfest.yaml/badge.svg)](https://github.com/bimbam123/ha-realiser-a16/actions/workflows/hassfest.yaml)
+[![Tests](https://github.com/bimbam123/ha-realiser-a16/actions/workflows/tests.yaml/badge.svg)](https://github.com/bimbam123/ha-realiser-a16/actions/workflows/tests.yaml)
+[![License: MIT](https://img.shields.io/github/license/bimbam123/ha-realiser-a16)](LICENSE)
+
 > [!IMPORTANT]
 > This is an **unofficial**, community-built integration. It is **not** made,
 > endorsed or supported by Smyth Research. "Smyth Research" and "Realiser"
@@ -87,6 +93,10 @@ Assistant right away (with *TCP slave response* enabled).
 ## Installation
 
 ### Home Assistant Marketplace (custom repository)
+
+[![Open your Home Assistant instance and open this repository in the Marketplace.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=bimbam123&repository=ha-realiser-a16&category=integration)
+
+Use the button above, or add the repository by hand:
 
 1. Open **Settings > Marketplace**.
 2. Add `https://github.com/bimbam123/ha-realiser-a16` as a custom repository
