@@ -73,7 +73,7 @@ Default response is `KEY=<code>`.
 | 37 | OH | `14` | `KEY=14` |
 | 38 | ALL (toggle solo/mute) | `1a` | `ALL=SOLO` or `ALL=MUTE` |
 | 39 | headphone | `4d` | `MODE=SVS` |
-| 40 | speaker | `5e` | `MODE=AV` / `MODE=MIX` / `MODE=SVS` |
+| 40 | speaker | `5e` | `MODE=AV` / `MODE=MIX` / `MODE=SVS` (FW 2.17: sets speaker mode, see below) |
 | 41 | A vol+ | `30` | `VA=27..99` `TRI=1..3` |
 | 42 | A vol- | `31` | `VA=27..99` `TRI=1..3` |
 | 43 | B vol+ | `33` | `VB=27..99` |
@@ -452,6 +452,60 @@ rely on them.
 keepalives do not end the connection; the device's own reset ends it. A
 `boot_timeout` (120 s) is the safety net. The reconnect follows after 1 s,
 because the previous connection was healthy.
+
+### Output, test and head tracking keys (2026-11-13, `tools/a16_toggle_probe.py`)
+
+Three runs with 2.5 s between commands: two with the A16 on Powerline (PC
+wired, later on WLAN), one with the A16 wired to the router.
+
+**Output keys `4d`/`5e` set the mode, they do not toggle:**
+- `5e` from `SVS` answered `MODE=MIX`; every further `5e` (8 of 8) stayed at
+  `MIX`. It never cycled through AV/MIX/SVS.
+- `4d` always answered `MODE=SVS`.
+- Whether `5e` gives `AV` or `MIX` presumably depends on the AV mode of the
+  preset (manual 9.2.6) **(unverified)**; the test preset only gave `MIX`.
+- `pya16` treats `4d`/`5e` as idempotent (retried like queries).
+
+**Test signal `08` is a real toggle, queryable with `af`:**
+- `TEST=LOOP` / `TEST=OFF` answered after ~1–3.4 s; `af` always showed the
+  same value.
+- Once `08` was ignored: **no answer at all**, and `af` showed the unchanged
+  state (like the mute toggle).
+
+**Head tracking `42` is a real toggle without a query:**
+- Answers `HT=ACTIVE` / `HT=OFF` after ~0.9–1.7 s.
+- `80` always reported `HTMODE=Gyro`, whether HT was on or off, and `af`
+  has no `HT` field. The HT state is only known from the answer to the last
+  toggle (or a push after a key press on the remote).
+- Once `42` got no answer during a phase in which the A16 ignored four
+  commands in a row (~12 s, A16 wired). The next `42` answered the opposite
+  of the previous confirmed state, so **the unanswered toggle had not been
+  executed**.
+
+**Consequences in `pya16` (`_set_toggle`):** nothing is sent if the known
+state already matches; an unanswered toggle is checked with a query (TEST:
+`af`) and sent once more; an answer with the wrong state (state was unknown)
+is toggled back; after a second unanswered toggle the state of HT becomes
+unknown.
+
+**Network:** both Powerline runs ended with a connection abort on the PC
+side (WinError 64 "network name no longer available", WinError 121
+"semaphore timeout"); the first run also got no answers at all for 27 s.
+Ping over Powerline: median 54 ms, max 254 ms (PC → router 2 ms). With the
+A16 wired: median 14 ms, max 68 ms, no abort. Phases in which the A16
+ignores commands occur on the wired path too, so they come from the device.
+
+### Tri-Ref volume (user manual rev 2.0, section 16.13) **(unverified)**
+
+`TRI=1..3` belongs to the "Tri-Ref" function (Listening Room Configuration →
+Room Reference Levels). When it is enabled, a volume step does not change the
+volume by one but **cycles between three levels**: the reference volume
+(1) and two offsets (2, 3; up to ±20 dB). Example in the manual: Vol 68,
+Ref 2 = −6, Ref 3 = +6 → 68 → 62 → 74 → 68. The manual shows it for user B,
+the IP command summary lists `TRI` for user A only.
+
+The volume target of the integration assumes ±1 per step and would not work
+with Tri-Ref enabled. Not supported; not tested on a device.
 
 ## Known open questions
 
