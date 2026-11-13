@@ -2,6 +2,12 @@
 
 # Smyth Realiser A16 for Home Assistant (unofficial)
 
+[![Release](https://img.shields.io/github/v/release/bimbam123/ha-realiser-a16)](https://github.com/bimbam123/ha-realiser-a16/releases)
+[![Validate](https://github.com/bimbam123/ha-realiser-a16/actions/workflows/validate.yaml/badge.svg)](https://github.com/bimbam123/ha-realiser-a16/actions/workflows/validate.yaml)
+[![Hassfest](https://github.com/bimbam123/ha-realiser-a16/actions/workflows/hassfest.yaml/badge.svg)](https://github.com/bimbam123/ha-realiser-a16/actions/workflows/hassfest.yaml)
+[![Tests](https://github.com/bimbam123/ha-realiser-a16/actions/workflows/tests.yaml/badge.svg)](https://github.com/bimbam123/ha-realiser-a16/actions/workflows/tests.yaml)
+[![License: MIT](https://img.shields.io/github/license/bimbam123/ha-realiser-a16)](LICENSE)
+
 > [!IMPORTANT]
 > This is an **unofficial**, community-built integration. It is **not** made,
 > endorsed or supported by Smyth Research. "Smyth Research" and "Realiser"
@@ -21,16 +27,32 @@ Assistant 2026.11. Expect rough edges and please report issues.
 
 ### Entities
 
-<img src="https://raw.githubusercontent.com/bimbam123/ha-realiser-a16/main/docs/images/device-page.png" alt="Device page of the Realiser A16 in Home Assistant" width="600">
+<img src="https://raw.githubusercontent.com/bimbam123/ha-realiser-a16/main/docs/images/device-page.png" alt="Device page of the Realiser A16 in Home Assistant: device info and controls" width="600">
 
 | Entity | What it does |
 |---|---|
 | `media_player` Realiser A16 | power on / standby and source selection (eARC, HDMI 1–4, USB, Line, Stereo, Coaxial, Optical) for the whole device |
-| `media_player` User A / User B | volume and mute per user; on/off follows the device |
+| `switch` Head tracking | on / off; the A16 cannot be queried for it, so the state is unknown until the first toggle |
+| `select` Output | headphones / speakers |
 | `select` Preset A / Preset B | preset 1–16; a preset shows its room/subject name once it has been active |
-| `sensor` Mode | SVS / AV / MIX |
+| `select` Source | the same source selection as a select, for dashboards |
+| `switch` Test signal | internal test loop |
+| `media_player` User A / User B | volume and mute per user; on/off follows the device |
+
+<img src="https://raw.githubusercontent.com/bimbam123/ha-realiser-a16/main/docs/images/sensors.png" alt="Sensor and diagnostic entities of the Realiser A16" width="300">
+
+| Entity | What it shows |
+|---|---|
+| `sensor` Decoder | e.g. PCM 2ch |
 | `sensor` Head tracking mode | e.g. Gyro |
+| `sensor` Listening mode | e.g. 2.1.0 |
+| `sensor` Upmixer | e.g. OFF |
 | `sensor` Firmware | diagnostic |
+| `sensor` HPEQ A / HPEQ B | diagnostic; headphone EQ, with subject, type, date and headphone as attributes |
+| `sensor` Legacy decoding | diagnostic |
+| `sensor` Mode | diagnostic; SVS / AV / MIX |
+| `binary_sensor` Tactile A / Tactile B | diagnostic; tactile output of the active preset |
+| `sensor` Users | diagnostic; single / dual user |
 
 The volume of the user players is shown **1:1 with the A16 display**: 64 on
 the A16 is shown as 64 % in Home Assistant. The A16 range is 27–99; a lower
@@ -71,6 +93,10 @@ Assistant right away (with *TCP slave response* enabled).
 ## Installation
 
 ### Home Assistant Marketplace (custom repository)
+
+[![Open your Home Assistant instance and open this repository in the Marketplace.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=bimbam123&repository=ha-realiser-a16&category=integration)
+
+Use the button above, or add the repository by hand:
 
 1. Open **Settings > Marketplace**.
 2. Add `https://github.com/bimbam123/ha-realiser-a16` as a custom repository
