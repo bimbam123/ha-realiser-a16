@@ -36,7 +36,7 @@ async def test_entities_unavailable_while_disconnected(hass, setup_integration):
         "media_player.realiser_a16",
         "media_player.realiser_a16_user_b",
         "select.realiser_a16_preset_b",
-        "sensor.realiser_a16_mode",
+        "sensor.realiser_a16_rendering_mode",
     ):
         assert hass.states.get(entity).state == STATE_UNAVAILABLE
     client.set_connected(True)
@@ -96,9 +96,9 @@ async def test_entities_created(hass, setup_integration, config_entry):
         "media_player.realiser_a16",
         "media_player.realiser_a16_user_a",
         "media_player.realiser_a16_user_b",
-        "select.realiser_a16_output",
         "select.realiser_a16_preset_a",
         "select.realiser_a16_preset_b",
+        "select.realiser_a16_rendering",
         "select.realiser_a16_source",
         "sensor.realiser_a16_decoder",
         "sensor.realiser_a16_firmware",
@@ -107,7 +107,7 @@ async def test_entities_created(hass, setup_integration, config_entry):
         "sensor.realiser_a16_hpeq_b",
         "sensor.realiser_a16_legacy_decoding",
         "sensor.realiser_a16_listening_mode",
-        "sensor.realiser_a16_mode",
+        "sensor.realiser_a16_rendering_mode",
         "sensor.realiser_a16_upmixer",
         "sensor.realiser_a16_users",
         "switch.realiser_a16_head_tracking",

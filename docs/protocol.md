@@ -138,7 +138,7 @@ meter screenshot Fig. 11, not yet seen on the device).
 `AUR` user name · `PA` preset no. · `VA` volume · `TRI` tri-level (1–3) ·
 `AROOM` room · `ANAME` subject · `ASPKR` layout · `AQFILE` HPEQ file ·
 `AQNAME` HPEQ subject · `AQTYPE` HPEQ filter type · `AQMOD` headphone model ·
-`ATACT` tactile ON/OFF · `IN` source · `DEC` active decoder · `LM` listening
+`ATACT` tactile (`ON`, or empty when the room has no tactile output; `OFF` never observed on FW 2.17) · `IN` source · `DEC` active decoder · `LM` listening
 mode · `UMIX` upmixer · `HTMODE` head-tracker mode · `LEG` Dolby/DTS legacy ·
 `USER` single/dual user mode.
 
@@ -462,8 +462,18 @@ wired, later on WLAN), one with the A16 wired to the router.
 - `5e` from `SVS` answered `MODE=MIX`; every further `5e` (8 of 8) stayed at
   `MIX`. It never cycled through AV/MIX/SVS.
 - `4d` always answered `MODE=SVS`.
-- Whether `5e` gives `AV` or `MIX` presumably depends on the AV mode of the
-  preset (manual 9.2.6) **(unverified)**; the test preset only gave `MIX`.
+- Whether `5e` gives `AV` or `MIX` depends on the active User A preset
+  (manual 9.2.6 and chapter 11 "Stereo Bypass"): with AV mode enabled the
+  speaker key engages AV loudspeaker mode (`MODE=AV`, decoded audio to the
+  16-ch line outputs, headphone rendering off); with AV mode disabled (the
+  default) it engages Stereo Mixdown mode (`MODE=MIX`, a non-virtualised
+  stereo mix to the **headphones**, optionally with HPEQ; must be enabled in
+  the loaded listening room). AV switching also needs A/B demo mode under HT
+  settings disabled. On the device only `MIX` has been observed so far (AV
+  mode off in the test preset); `MODE=AV` after `5e` is **(unverified)**.
+- So `MODE=MIX` does **not** mean loudspeakers. The integration's select
+  "Rendering" offers "SVS headphone" (`4d`) and "AV / Stereo mixdown" (`5e`);
+  the sensor "Rendering mode" shows the actual `MODE=`.
 - `pya16` treats `4d`/`5e` as idempotent (retried like queries).
 
 **Test signal `08` is a real toggle, queryable with `af`:**
