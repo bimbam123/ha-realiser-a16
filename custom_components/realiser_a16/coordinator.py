@@ -170,6 +170,8 @@ class A16Coordinator(DataUpdateCoordinator[A16State]):
         try:
             await coro
         except A16Error as err:
+            # A failed toggle can leave its state unknown (e.g. head tracking).
+            self.async_update_listeners()
             raise HomeAssistantError(
                 translation_domain=DOMAIN,
                 translation_key="command_failed",

@@ -37,6 +37,14 @@
     }
   },
   "entity": {
+    "binary_sensor": {
+      "tactile_a": {
+        "name": "Taktil A"
+      },
+      "tactile_b": {
+        "name": "Taktil B"
+      }
+    },
     "media_player": {
       "user_a": {
         "name": "User A"
@@ -51,6 +59,16 @@
       },
       "preset_b": {
         "name": "Preset B"
+      },
+      "source": {
+        "name": "Quelle"
+      },
+      "output": {
+        "name": "Ausgabe",
+        "state": {
+          "headphones": "Kopfhörer",
+          "speakers": "Lautsprecher"
+        }
       }
     },
     "sensor": {
@@ -67,6 +85,63 @@
       },
       "firmware": {
         "name": "Firmware"
+      },
+      "decoder": {
+        "name": "Decoder"
+      },
+      "listening_mode": {
+        "name": "Hörmodus"
+      },
+      "upmixer": {
+        "name": "Upmixer"
+      },
+      "legacy": {
+        "name": "Legacy-Dekodierung"
+      },
+      "user_mode": {
+        "name": "Nutzer"
+      },
+      "hpeq_a": {
+        "name": "HPEQ A",
+        "state_attributes": {
+          "subject": {
+            "name": "Person"
+          },
+          "type": {
+            "name": "Filtertyp"
+          },
+          "date": {
+            "name": "Datum"
+          },
+          "headphone": {
+            "name": "Kopfhörer"
+          }
+        }
+      },
+      "hpeq_b": {
+        "name": "HPEQ B",
+        "state_attributes": {
+          "subject": {
+            "name": "Person"
+          },
+          "type": {
+            "name": "Filtertyp"
+          },
+          "date": {
+            "name": "Datum"
+          },
+          "headphone": {
+            "name": "Kopfhörer"
+          }
+        }
+      }
+    },
+    "switch": {
+      "test_signal": {
+        "name": "Testsignal"
+      },
+      "head_tracking": {
+        "name": "Head-Tracking"
       }
     }
   },

@@ -12,9 +12,11 @@ from .coordinator import A16Coordinator
 from .pya16 import A16Client
 
 PLATFORMS: list[Platform] = [
+    Platform.BINARY_SENSOR,
     Platform.MEDIA_PLAYER,
     Platform.SELECT,
     Platform.SENSOR,
+    Platform.SWITCH,
 ]
 
 type A16ConfigEntry = ConfigEntry[A16Coordinator]

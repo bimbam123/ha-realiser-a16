@@ -91,14 +91,27 @@ async def test_entities_created(hass, setup_integration, config_entry):
         er.async_get(hass), config_entry.entry_id
     )
     assert sorted(e.entity_id for e in entries) == [
+        "binary_sensor.realiser_a16_tactile_a",
+        "binary_sensor.realiser_a16_tactile_b",
         "media_player.realiser_a16",
         "media_player.realiser_a16_user_a",
         "media_player.realiser_a16_user_b",
+        "select.realiser_a16_output",
         "select.realiser_a16_preset_a",
         "select.realiser_a16_preset_b",
+        "select.realiser_a16_source",
+        "sensor.realiser_a16_decoder",
         "sensor.realiser_a16_firmware",
         "sensor.realiser_a16_head_tracking_mode",
+        "sensor.realiser_a16_hpeq_a",
+        "sensor.realiser_a16_hpeq_b",
+        "sensor.realiser_a16_legacy_decoding",
+        "sensor.realiser_a16_listening_mode",
         "sensor.realiser_a16_mode",
+        "sensor.realiser_a16_upmixer",
+        "sensor.realiser_a16_users",
+        "switch.realiser_a16_head_tracking",
+        "switch.realiser_a16_test_signal",
     ]
     # the user players keep the unique IDs of v0.2.0/v0.2.1
     from .conftest import SERIAL
