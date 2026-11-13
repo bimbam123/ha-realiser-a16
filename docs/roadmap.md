@@ -14,7 +14,7 @@ plans, not promises.
 - Entities unavailable while disconnected; `PWR=BOOT` shown as on with
   attribute `power_state: boot`
 
-## v0.2.1 – feedback from the first installation
+## v0.2.1 – feedback from the first installation (released)
 
 - Power and source on a device-level media player ("Realiser A16"); the
   user players only have volume and mute (power applies to the whole device)
@@ -26,7 +26,7 @@ plans, not promises.
 - "Reconfigure" for IP address and port (replaces the port option)
 - Diagnostics download with connection statistics
 
-## v0.2.2 – volume like on the A16 display
+## v0.2.2 – volume like on the A16 display (released)
 
 - The user players show the volume 1:1 with the A16 display (64 = 64 %,
   range 27–99); volume up/down is exactly one A16 step
