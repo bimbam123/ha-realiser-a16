@@ -225,9 +225,9 @@ async def test_preset_select_invalid(hass, setup_integration):
 
 async def test_sensors(hass, setup_integration):
     client = setup_integration
-    assert hass.states.get("sensor.realiser_a16_mode").state == "svs"
+    assert hass.states.get("sensor.realiser_a16_rendering_mode").state == "svs"
     assert hass.states.get("sensor.realiser_a16_head_tracking_mode").state == "Gyro"
     assert hass.states.get("sensor.realiser_a16_firmware").state == "2.17 Jan 26 2024"
     client.push(b"MODE=AV")
     await hass.async_block_till_done()
-    assert hass.states.get("sensor.realiser_a16_mode").state == "av"
+    assert hass.states.get("sensor.realiser_a16_rendering_mode").state == "av"

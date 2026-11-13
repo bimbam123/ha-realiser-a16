@@ -1,4 +1,4 @@
-"""v0.3.0: source and output selects, test/HT switches, new sensors."""
+"""v0.3.0: source and rendering selects, test/HT switches, new sensors."""
 
 import pytest
 from homeassistant.const import STATE_UNKNOWN
@@ -7,7 +7,7 @@ from homeassistant.helpers import entity_registry as er
 
 DEVICE = "media_player.realiser_a16"
 SOURCE = "select.realiser_a16_source"
-OUTPUT = "select.realiser_a16_output"
+RENDERING = "select.realiser_a16_rendering"
 TEST = "switch.realiser_a16_test_signal"
 HT = "switch.realiser_a16_head_tracking"
 
@@ -46,28 +46,40 @@ async def test_source_select_invalid(hass, setup_integration):
         await _call(hass, "select", "select_option", SOURCE, option="VGA")
 
 
-# --- output select: headphones (4d) / speakers (5e) ---
+# --- rendering select: SVS headphone (4d) / AV or stereo mixdown (5e) ---
 
 
-async def test_output_select(hass, setup_integration):
+async def test_rendering_select(hass, setup_integration):
     client = setup_integration
-    assert hass.states.get(OUTPUT).state == "headphones"
-    await _call(hass, "select", "select_option", OUTPUT, option="speakers")
+    assert hass.states.get(RENDERING).state == "svs"
+    await _call(hass, "select", "select_option", RENDERING, option="av_mix")
     assert client.sent[-1] == "5e"
-    assert hass.states.get(OUTPUT).state == "speakers"
-    assert hass.states.get("sensor.realiser_a16_mode").state == "mix"
+    # AV mode off in the preset: the speaker key gives stereo mixdown
+    assert hass.states.get(RENDERING).state == "av_mix"
+    assert hass.states.get("sensor.realiser_a16_rendering_mode").state == "mix"
 
+    # AV mode on in the preset: AV loudspeaker mode, same select option
     client.push(b"MODE=AV")
     await hass.async_block_till_done()
-    assert hass.states.get(OUTPUT).state == "speakers"
+    assert hass.states.get(RENDERING).state == "av_mix"
+    assert hass.states.get("sensor.realiser_a16_rendering_mode").state == "av"
 
-    await _call(hass, "select", "select_option", OUTPUT, option="headphones")
+    await _call(hass, "select", "select_option", RENDERING, option="svs")
     assert client.sent[-1] == "4d"
-    assert hass.states.get(OUTPUT).state == "headphones"
+    assert hass.states.get(RENDERING).state == "svs"
+    assert hass.states.get("sensor.realiser_a16_rendering_mode").state == "svs"
+
+
+async def test_rendering_keeps_unique_ids(hass, setup_integration):
+    """Renamed from Output/Mode in 0.3.0b2: unique IDs stay the same."""
+    reg = er.async_get(hass)
+    assert reg.async_get(RENDERING).unique_id.endswith("_output")
+    sensor = reg.async_get("sensor.realiser_a16_rendering_mode")
+    assert sensor.unique_id.endswith("_mode")
 
 
 async def test_mode_sensor_is_diagnostic(hass, setup_integration):
-    entry = er.async_get(hass).async_get("sensor.realiser_a16_mode")
+    entry = er.async_get(hass).async_get("sensor.realiser_a16_rendering_mode")
     assert entry.entity_category == er.EntityCategory.DIAGNOSTIC
 
 

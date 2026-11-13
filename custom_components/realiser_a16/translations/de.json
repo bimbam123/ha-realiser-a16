@@ -63,21 +63,21 @@
       "source": {
         "name": "Quelle"
       },
-      "output": {
-        "name": "Ausgabe",
+      "rendering": {
+        "name": "Wiedergabe",
         "state": {
-          "headphones": "Kopfhörer",
-          "speakers": "Lautsprecher"
+          "svs": "SVS-Kopfhörer",
+          "av_mix": "AV / Stereo-Mixdown"
         }
       }
     },
     "sensor": {
       "mode": {
-        "name": "Modus",
+        "name": "Wiedergabemodus",
         "state": {
-          "svs": "SVS (Kopfhörer)",
-          "av": "AV (Lautsprecher)",
-          "mix": "Mix"
+          "svs": "SVS-Kopfhörer",
+          "av": "AV-Lautsprecher",
+          "mix": "Stereo-Mixdown"
         }
       },
       "ht_mode": {

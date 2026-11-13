@@ -63,21 +63,21 @@
       "source": {
         "name": "Source"
       },
-      "output": {
-        "name": "Output",
+      "rendering": {
+        "name": "Rendering",
         "state": {
-          "headphones": "Headphones",
-          "speakers": "Speakers"
+          "svs": "SVS headphone",
+          "av_mix": "AV / Stereo mixdown"
         }
       }
     },
     "sensor": {
       "mode": {
-        "name": "Mode",
+        "name": "Rendering mode",
         "state": {
-          "svs": "SVS (headphones)",
-          "av": "AV (speakers)",
-          "mix": "Mix"
+          "svs": "SVS headphone",
+          "av": "AV loudspeaker",
+          "mix": "Stereo mixdown"
         }
       },
       "ht_mode": {

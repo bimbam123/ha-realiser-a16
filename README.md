@@ -33,8 +33,8 @@ Assistant 2026.11. Expect rough edges and please report issues.
 |---|---|
 | `media_player` Realiser A16 | power on / standby and source selection (eARC, HDMI 1–4, USB, Line, Stereo, Coaxial, Optical) for the whole device |
 | `switch` Head tracking | on / off; the A16 cannot be queried for it, so the state is unknown until the first toggle |
-| `select` Output | headphones / speakers |
 | `select` Preset A / Preset B | preset 1–16; a preset shows its room/subject name once it has been active |
+| `select` Rendering | SVS headphone (virtual speakers) or the speaker key: AV loudspeaker mode if AV mode is enabled in the active User A preset, otherwise stereo mixdown to the headphones; the sensor Rendering mode shows which |
 | `select` Source | the same source selection as a select, for dashboards |
 | `switch` Test signal | internal test loop |
 | `media_player` User A / User B | volume and mute per user; on/off follows the device |
@@ -50,7 +50,7 @@ Assistant 2026.11. Expect rough edges and please report issues.
 | `sensor` Firmware | diagnostic |
 | `sensor` HPEQ A / HPEQ B | diagnostic; headphone EQ, with subject, type, date and headphone as attributes |
 | `sensor` Legacy decoding | diagnostic |
-| `sensor` Mode | diagnostic; SVS / AV / MIX |
+| `sensor` Rendering mode | diagnostic; SVS headphone / AV loudspeaker / Stereo mixdown |
 | `binary_sensor` Tactile A / Tactile B | diagnostic; tactile output of the active preset |
 | `sensor` Users | diagnostic; single / dual user |
 

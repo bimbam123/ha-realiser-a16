@@ -1,4 +1,4 @@
-"""Selects of the Realiser A16: source, output (headphones/speakers), presets."""
+"""Selects of the Realiser A16: source, rendering (SVS / AV or mixdown), presets."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ async def async_setup_entry(
     async_add_entities(
         [
             A16SourceSelect(coordinator),
-            A16OutputSelect(coordinator),
+            A16RenderingSelect(coordinator),
             *(A16PresetSelect(coordinator, user) for user in USERS),
         ]
     )
@@ -32,13 +32,16 @@ async def async_setup_entry(
 
 _SOURCE_BY_NAME = {name: value for value, name in SOURCE_NAMES.items()}
 
-OUTPUT_HEADPHONES = "headphones"
-OUTPUT_SPEAKERS = "speakers"
-# MODE= value -> output option; AV or MIX depends on the preset.
-_OUTPUT_BY_MODE = {
-    "SVS": OUTPUT_HEADPHONES,
-    "AV": OUTPUT_SPEAKERS,
-    "MIX": OUTPUT_SPEAKERS,
+RENDERING_SVS = "svs"
+RENDERING_AV_MIX = "av_mix"
+# MODE= value -> rendering option. The speaker key (5e) gives AV loudspeaker
+# mode if AV mode is enabled in the active User A preset, otherwise stereo
+# mixdown to the headphones (manual 9.2.6 and chapter 11). The sensor "Rendering
+# mode" shows which one.
+_RENDERING_BY_MODE = {
+    "SVS": RENDERING_SVS,
+    "AV": RENDERING_AV_MIX,
+    "MIX": RENDERING_AV_MIX,
 }
 
 
@@ -69,22 +72,25 @@ class A16SourceSelect(A16Entity, SelectEntity):
         )
 
 
-class A16OutputSelect(A16Entity, SelectEntity):
-    """Headphones (SVS) or speakers (AV/MIX)."""
+class A16RenderingSelect(A16Entity, SelectEntity):
+    """SVS headphone mode (4d) or the speaker key (5e): AV or stereo mixdown.
 
-    _attr_translation_key = "output"
-    _attr_options = [OUTPUT_HEADPHONES, OUTPUT_SPEAKERS]
+    The key stays "output" so existing entities keep their unique_id.
+    """
+
+    _attr_translation_key = "rendering"
+    _attr_options = [RENDERING_SVS, RENDERING_AV_MIX]
 
     def __init__(self, coordinator) -> None:
         super().__init__(coordinator, "output")
 
     @property
     def current_option(self) -> str | None:
-        return _OUTPUT_BY_MODE.get((self.state_data.mode or "").upper())
+        return _RENDERING_BY_MODE.get((self.state_data.mode or "").upper())
 
     async def async_select_option(self, option: str) -> None:
         await self.coordinator.async_command(
-            self.coordinator.client.set_output(option == OUTPUT_SPEAKERS)
+            self.coordinator.client.set_output(option == RENDERING_AV_MIX)
         )
 
 
