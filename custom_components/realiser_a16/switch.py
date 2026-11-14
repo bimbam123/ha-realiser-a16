@@ -1,4 +1,4 @@
-"""Switches of the Realiser A16: test signal and head tracking."""
+"""Switches of the Realiser A16: test signal."""
 
 from __future__ import annotations
 
@@ -20,9 +20,7 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     coordinator = entry.runtime_data
-    async_add_entities(
-        [A16TestSignalSwitch(coordinator), A16HeadTrackingSwitch(coordinator)]
-    )
+    async_add_entities([A16TestSignalSwitch(coordinator)])
 
 
 class A16TestSignalSwitch(A16Entity, SwitchEntity):
@@ -46,33 +44,4 @@ class A16TestSignalSwitch(A16Entity, SwitchEntity):
     async def async_turn_off(self, **kwargs: Any) -> None:
         await self.coordinator.async_command(
             self.coordinator.client.set_test_signal(False)
-        )
-
-
-class A16HeadTrackingSwitch(A16Entity, SwitchEntity):
-    """Head tracking (HT key).
-
-    The A16 has no query for it: the state is only known from the answer to
-    the last toggle (or a key press on the remote) and unknown after start.
-    """
-
-    _attr_translation_key = "head_tracking"
-    _attr_assumed_state = True
-
-    def __init__(self, coordinator) -> None:
-        super().__init__(coordinator, "head_tracking")
-
-    @property
-    def is_on(self) -> bool | None:
-        ht = self.state_data.head_tracking
-        return None if ht is None else ht == "ACTIVE"
-
-    async def async_turn_on(self, **kwargs: Any) -> None:
-        await self.coordinator.async_command(
-            self.coordinator.client.set_head_tracking(True)
-        )
-
-    async def async_turn_off(self, **kwargs: Any) -> None:
-        await self.coordinator.async_command(
-            self.coordinator.client.set_head_tracking(False)
         )

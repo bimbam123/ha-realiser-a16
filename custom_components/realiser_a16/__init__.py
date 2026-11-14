@@ -13,6 +13,7 @@ from .pya16 import A16Client
 
 PLATFORMS: list[Platform] = [
     Platform.BINARY_SENSOR,
+    Platform.BUTTON,
     Platform.MEDIA_PLAYER,
     Platform.SELECT,
     Platform.SENSOR,
@@ -27,7 +28,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: A16ConfigEntry) -> bool:
     port = entry.options.get(CONF_PORT, entry.data[CONF_PORT])
     client = A16Client(entry.data[CONF_HOST], port)
     coordinator = A16Coordinator(hass, entry, client)
-    _remove_old_volume_numbers(hass, entry)
+    _remove_old_entities(hass, entry)
     await coordinator.async_start()  # raises ConfigEntryNotReady
     entry.runtime_data = coordinator
 
@@ -41,18 +42,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: A16ConfigEntry) -> bool:
     return True
 
 
-def _remove_old_volume_numbers(hass: HomeAssistant, entry: A16ConfigEntry) -> None:
-    """v0.2.1 had number entities "Volume A/B" next to the user players.
+def _remove_old_entities(hass: HomeAssistant, entry: A16ConfigEntry) -> None:
+    """Remove registry entries of entities that no longer exist.
 
-    Since v0.2.2 the user players show the A16 value themselves (64 = 64 %),
-    so the numbers were duplicates and are removed.
+    - v0.2.1 had number entities "Volume A/B" next to the user players. Since
+      v0.2.2 the user players show the A16 value themselves (64 = 64 %).
+    - v0.3.0b1 had a switch "Head tracking". The HT key only toggles the angle
+      display and a remote press is not pushed, so it became a button.
     """
     registry = er.async_get(hass)
     serial = entry.unique_id or entry.entry_id
-    for user in ("a", "b"):
-        if entity_id := registry.async_get_entity_id(
-            "number", DOMAIN, f"{serial}_volume_{user}"
-        ):
+    old = [("number", f"{serial}_volume_{user}") for user in ("a", "b")]
+    old.append(("switch", f"{serial}_head_tracking"))
+    for platform, unique_id in old:
+        if entity_id := registry.async_get_entity_id(platform, DOMAIN, unique_id):
             registry.async_remove(entity_id)
 
 

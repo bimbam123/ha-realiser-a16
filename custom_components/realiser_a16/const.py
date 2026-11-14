@@ -43,7 +43,6 @@ RELEVANT_PATHS: Final = frozenset(
         "legacy",
         "user_mode",
         "test",
-        "head_tracking",
         "firmware.a16",
         "firmware.serial",
         "user_a.name",

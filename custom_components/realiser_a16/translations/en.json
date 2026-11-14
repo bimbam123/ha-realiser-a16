@@ -139,9 +139,11 @@
     "switch": {
       "test_signal": {
         "name": "Test signal"
-      },
-      "head_tracking": {
-        "name": "Head tracking"
+      }
+    },
+    "button": {
+      "ht_display": {
+        "name": "HT display"
       }
     }
   },

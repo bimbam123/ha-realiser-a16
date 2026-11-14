@@ -201,6 +201,7 @@ class MockA16Client:
     set_output = A16Client.set_output
     set_test_signal = A16Client.set_test_signal
     set_head_tracking = A16Client.set_head_tracking
+    press_key = A16Client.press_key
     _set_toggle = A16Client._set_toggle
 
     async def step_volume(self, user: str, up: bool) -> int | None:

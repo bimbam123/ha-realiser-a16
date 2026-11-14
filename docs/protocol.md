@@ -487,6 +487,16 @@ wired, later on WLAN), one with the A16 wired to the router.
 - `80` always reported `HTMODE=Gyro`, whether HT was on or off, and `af`
   has no `HT` field. The HT state is only known from the answer to the last
   toggle (or a push after a key press on the remote).
+- Per user manual v2.0 (2.4.3, 4.3.6, 9.4.4.5) `42` / the HT key only
+  toggles the **head-tracker angle display**, not head tracking itself (that
+  is the menu setting *HT Settings → Disable HT*). On the remote the key works
+  only while the Speaker Map page is shown. Confirmed by the owner on the
+  display.
+- **A remote HT press is not pushed** (2026-11-14, `a16_cli monitor`, FW
+  2.17): PA, HT, HT on the Speaker Map changed the display, but nothing
+  arrived (no `HT=`, no `KEY=`, no `PAGE=`). The volume A steps pressed right
+  after were pushed at once (`VA=69`, `VA=68`). The HT state known to a
+  client is therefore only valid until the next remote press.
 - Once `42` got no answer during a phase in which the A16 ignored four
   commands in a row (~12 s, A16 wired). The next `42` answered the opposite
   of the previous confirmed state, so **the unanswered toggle had not been

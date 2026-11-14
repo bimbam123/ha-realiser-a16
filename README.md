@@ -32,7 +32,7 @@ Assistant 2026.11. Expect rough edges and please report issues.
 | Entity | What it does |
 |---|---|
 | `media_player` Realiser A16 | power on / standby and source selection (eARC, HDMI 1–4, USB, Line, Stereo, Coaxial, Optical) for the whole device |
-| `switch` Head tracking | on / off; the A16 cannot be queried for it, so the state is unknown until the first toggle |
+| `button` HT display | toggles the head-tracker angle display on the Speaker Map page, like the HT key on the remote (it does not switch head tracking) |
 | `select` Preset A / Preset B | preset 1–16; a preset shows its room/subject name once it has been active |
 | `select` Rendering | SVS headphone (virtual speakers) or the speaker key: AV loudspeaker mode if AV mode is enabled in the active User A preset, otherwise stereo mixdown to the headphones; the sensor Rendering mode shows which |
 | `select` Source | the same source selection as a select, for dashboards |

@@ -93,6 +93,7 @@ async def test_entities_created(hass, setup_integration, config_entry):
     assert sorted(e.entity_id for e in entries) == [
         "binary_sensor.realiser_a16_tactile_a",
         "binary_sensor.realiser_a16_tactile_b",
+        "button.realiser_a16_ht_display",
         "media_player.realiser_a16",
         "media_player.realiser_a16_user_a",
         "media_player.realiser_a16_user_b",
@@ -110,7 +111,6 @@ async def test_entities_created(hass, setup_integration, config_entry):
         "sensor.realiser_a16_rendering_mode",
         "sensor.realiser_a16_upmixer",
         "sensor.realiser_a16_users",
-        "switch.realiser_a16_head_tracking",
         "switch.realiser_a16_test_signal",
     ]
     # the user players keep the unique IDs of v0.2.0/v0.2.1
@@ -158,3 +158,25 @@ async def test_diagnostics(hass, setup_integration, config_entry):
     assert diag["state"]["user_a"]["volume"] == 64
     assert diag["entry"]["title"] == "**REDACTED**"
     assert diag["learned_preset_names"]["a"] == [6]
+
+
+async def test_old_head_tracking_switch_is_removed(hass, mock_client, config_entry):
+    """v0.3.0b1 had a switch "Head tracking"; it became the button "HT display"."""
+    from homeassistant.helpers import entity_registry as er
+
+    from .conftest import SERIAL
+
+    config_entry.add_to_hass(hass)
+    registry = er.async_get(hass)
+    registry.async_get_or_create(
+        "switch",
+        "realiser_a16",
+        f"{SERIAL}_head_tracking",
+        config_entry=config_entry,
+        suggested_object_id="realiser_a16_head_tracking",
+    )
+    assert registry.async_get("switch.realiser_a16_head_tracking")
+    assert await hass.config_entries.async_setup(config_entry.entry_id)
+    await hass.async_block_till_done()
+    assert registry.async_get("switch.realiser_a16_head_tracking") is None
+    assert hass.states.get("button.realiser_a16_ht_display") is not None

@@ -9,7 +9,7 @@ DEVICE = "media_player.realiser_a16"
 SOURCE = "select.realiser_a16_source"
 RENDERING = "select.realiser_a16_rendering"
 TEST = "switch.realiser_a16_test_signal"
-HT = "switch.realiser_a16_head_tracking"
+HT = "button.realiser_a16_ht_display"
 
 
 async def _call(hass, domain, service, entity, **data):
@@ -108,41 +108,21 @@ async def test_ignored_test_toggle_is_sent_again(hass, setup_integration):
     assert hass.states.get(TEST).state == "on"
 
 
-# --- head tracking: toggle 42, no query ---
+# --- HT display: button, sends 42 once, never repeated blindly ---
 
 
-async def test_head_tracking_starts_unknown_and_is_assumed(hass, setup_integration):
-    st = hass.states.get(HT)
-    assert st.state == STATE_UNKNOWN
-    assert st.attributes["assumed_state"] is True
-
-
-async def test_head_tracking_unknown_state_is_corrected(hass, setup_integration):
+async def test_ht_display_button_sends_42_once(hass, setup_integration):
     client = setup_integration
-    client.device_ht = "ACTIVE"
-    await _call(hass, "switch", "turn_on", HT)
-    assert client.sent == ["42", "42"]  # first answer was OFF
-    assert hass.states.get(HT).state == "on"
-    await _call(hass, "switch", "turn_off", HT)
-    assert client.sent == ["42", "42", "42"]
-    assert hass.states.get(HT).state == "off"
+    await _call(hass, "button", "press", HT)
+    assert client.sent == ["42"]
 
 
-async def test_head_tracking_without_answer_becomes_unknown(hass, setup_integration):
+async def test_ht_display_button_not_repeated_without_answer(hass, setup_integration):
     client = setup_integration
-    await _call(hass, "switch", "turn_on", HT)
-    client.drop_codes["42"] = 2
+    client.drop_codes["42"] = 1
     with pytest.raises(HomeAssistantError):
-        await _call(hass, "switch", "turn_off", HT)
-    assert client.sent.count("42") == 3
-    assert hass.states.get(HT).state == STATE_UNKNOWN
-
-
-async def test_head_tracking_pushed_from_remote(hass, setup_integration):
-    client = setup_integration
-    client.push(b"HT=ACTIVE")
-    await hass.async_block_till_done()
-    assert hass.states.get(HT).state == "on"
+        await _call(hass, "button", "press", HT)
+    assert client.sent == ["42"]
 
 
 # --- new sensors ---
