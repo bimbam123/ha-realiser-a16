@@ -41,8 +41,8 @@ plans, not promises.
   (SVS/AV/MIX) becomes a diagnostic entity
 - `switch` **Test signal** (`08`, state from `af`)
 - `button` **HT display** (`42`): toggles the head-tracker angle display; a
-  button because a remote HT press is not pushed (b1 had a switch "Head
-  tracking", removed in b2)
+  button because a remote HT press is not pushed (b1/b2 had a switch "Head
+  tracking", removed in b3)
 - Toggles are never repeated blindly: an unanswered toggle was ignored by the
   A16 (checked with a query where there is one) and is sent once more
 - Sensors: decoder, listening mode, upmixer; diagnostic: legacy decoding,

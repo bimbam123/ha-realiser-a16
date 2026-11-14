@@ -47,7 +47,7 @@ def _remove_old_entities(hass: HomeAssistant, entry: A16ConfigEntry) -> None:
 
     - v0.2.1 had number entities "Volume A/B" next to the user players. Since
       v0.2.2 the user players show the A16 value themselves (64 = 64 %).
-    - v0.3.0b1 had a switch "Head tracking". The HT key only toggles the angle
+    - v0.3.0b1/b2 had a switch "Head tracking". The HT key only toggles the angle
       display and a remote press is not pushed, so it became a button.
     """
     registry = er.async_get(hass)

@@ -161,7 +161,7 @@ async def test_diagnostics(hass, setup_integration, config_entry):
 
 
 async def test_old_head_tracking_switch_is_removed(hass, mock_client, config_entry):
-    """v0.3.0b1 had a switch "Head tracking"; it became the button "HT display"."""
+    """v0.3.0b1/b2 had a switch "Head tracking"; it became the button "HT display"."""
     from homeassistant.helpers import entity_registry as er
 
     from .conftest import SERIAL
