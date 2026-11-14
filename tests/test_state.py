@@ -32,7 +32,7 @@ def test_reference_capture_state():
     assert a.headphone == "HD800S"  # trailing blanks stripped
     assert a.hpeq_file == "HPEQ File 1"
     assert (b.name, b.preset, b.volume, b.layout) == ("Listener 2", 7, 65, "9.1.6")
-    assert b.tactile is None  # BTACT= (empty)
+    assert b.tactile is False  # BTACT= (empty): no tactile
 
     assert s.assignments_a[1] == "L"
     assert s.assignments_a[16] == "Rtm"

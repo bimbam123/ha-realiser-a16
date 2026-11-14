@@ -73,7 +73,7 @@ Default response is `KEY=<code>`.
 | 37 | OH | `14` | `KEY=14` |
 | 38 | ALL (toggle solo/mute) | `1a` | `ALL=SOLO` or `ALL=MUTE` |
 | 39 | headphone | `4d` | `MODE=SVS` |
-| 40 | speaker | `5e` | `MODE=AV` / `MODE=MIX` / `MODE=SVS` |
+| 40 | speaker | `5e` | `MODE=AV` / `MODE=MIX` / `MODE=SVS` (FW 2.17: sets speaker mode, see below) |
 | 41 | A vol+ | `30` | `VA=27..99` `TRI=1..3` |
 | 42 | A vol- | `31` | `VA=27..99` `TRI=1..3` |
 | 43 | B vol+ | `33` | `VB=27..99` |
@@ -138,7 +138,7 @@ meter screenshot Fig. 11, not yet seen on the device).
 `AUR` user name · `PA` preset no. · `VA` volume · `TRI` tri-level (1–3) ·
 `AROOM` room · `ANAME` subject · `ASPKR` layout · `AQFILE` HPEQ file ·
 `AQNAME` HPEQ subject · `AQTYPE` HPEQ filter type · `AQMOD` headphone model ·
-`ATACT` tactile ON/OFF · `IN` source · `DEC` active decoder · `LM` listening
+`ATACT` tactile (`ON`, or empty when the room has no tactile output; `OFF` never observed on FW 2.17) · `IN` source · `DEC` active decoder · `LM` listening
 mode · `UMIX` upmixer · `HTMODE` head-tracker mode · `LEG` Dolby/DTS legacy ·
 `USER` single/dual user mode.
 
@@ -452,6 +452,80 @@ rely on them.
 keepalives do not end the connection; the device's own reset ends it. A
 `boot_timeout` (120 s) is the safety net. The reconnect follows after 1 s,
 because the previous connection was healthy.
+
+### Output, test and head tracking keys (2026-11-13, `tools/a16_toggle_probe.py`)
+
+Three runs with 2.5 s between commands: two with the A16 on Powerline (PC
+wired, later on WLAN), one with the A16 wired to the router.
+
+**Output keys `4d`/`5e` set the mode, they do not toggle:**
+- `5e` from `SVS` answered `MODE=MIX`; every further `5e` (8 of 8) stayed at
+  `MIX`. It never cycled through AV/MIX/SVS.
+- `4d` always answered `MODE=SVS`.
+- Whether `5e` gives `AV` or `MIX` depends on the active User A preset
+  (manual 9.2.6 and chapter 11 "Stereo Bypass"): with AV mode enabled the
+  speaker key engages AV loudspeaker mode (`MODE=AV`, decoded audio to the
+  16-ch line outputs, headphone rendering off); with AV mode disabled (the
+  default) it engages Stereo Mixdown mode (`MODE=MIX`, a non-virtualised
+  stereo mix to the **headphones**, optionally with HPEQ; must be enabled in
+  the loaded listening room). AV switching also needs A/B demo mode under HT
+  settings disabled. On the device only `MIX` has been observed so far (AV
+  mode off in the test preset); `MODE=AV` after `5e` is **(unverified)**.
+- So `MODE=MIX` does **not** mean loudspeakers. The integration's select
+  "Rendering" offers "SVS headphone" (`4d`) and "AV / Stereo mixdown" (`5e`);
+  the sensor "Rendering mode" shows the actual `MODE=`.
+- `pya16` treats `4d`/`5e` as idempotent (retried like queries).
+
+**Test signal `08` is a real toggle, queryable with `af`:**
+- `TEST=LOOP` / `TEST=OFF` answered after ~1–3.4 s; `af` always showed the
+  same value.
+- Once `08` was ignored: **no answer at all**, and `af` showed the unchanged
+  state (like the mute toggle).
+
+**Head tracking `42` is a real toggle without a query:**
+- Answers `HT=ACTIVE` / `HT=OFF` after ~0.9–1.7 s.
+- `80` always reported `HTMODE=Gyro`, whether HT was on or off, and `af`
+  has no `HT` field. The HT state is only known from the answer to the last
+  toggle (or a push after a key press on the remote).
+- Per user manual v2.0 (2.4.3, 4.3.6, 9.4.4.5) `42` / the HT key only
+  toggles the **head-tracker angle display**, not head tracking itself (that
+  is the menu setting *HT Settings → Disable HT*). On the remote the key works
+  only while the Speaker Map page is shown. Confirmed by the owner on the
+  display.
+- **A remote HT press is not pushed** (2026-11-14, `a16_cli monitor`, FW
+  2.17): PA, HT, HT on the Speaker Map changed the display, but nothing
+  arrived (no `HT=`, no `KEY=`, no `PAGE=`). The volume A steps pressed right
+  after were pushed at once (`VA=69`, `VA=68`). The HT state known to a
+  client is therefore only valid until the next remote press.
+- Once `42` got no answer during a phase in which the A16 ignored four
+  commands in a row (~12 s, A16 wired). The next `42` answered the opposite
+  of the previous confirmed state, so **the unanswered toggle had not been
+  executed**.
+
+**Consequences in `pya16` (`_set_toggle`):** nothing is sent if the known
+state already matches; an unanswered toggle is checked with a query (TEST:
+`af`) and sent once more; an answer with the wrong state (state was unknown)
+is toggled back; after a second unanswered toggle the state of HT becomes
+unknown.
+
+**Network:** both Powerline runs ended with a connection abort on the PC
+side (WinError 64 "network name no longer available", WinError 121
+"semaphore timeout"); the first run also got no answers at all for 27 s.
+Ping over Powerline: median 54 ms, max 254 ms (PC → router 2 ms). With the
+A16 wired: median 14 ms, max 68 ms, no abort. Phases in which the A16
+ignores commands occur on the wired path too, so they come from the device.
+
+### Tri-Ref volume (user manual rev 2.0, section 16.13) **(unverified)**
+
+`TRI=1..3` belongs to the "Tri-Ref" function (Listening Room Configuration →
+Room Reference Levels). When it is enabled, a volume step does not change the
+volume by one but **cycles between three levels**: the reference volume
+(1) and two offsets (2, 3; up to ±20 dB). Example in the manual: Vol 68,
+Ref 2 = −6, Ref 3 = +6 → 68 → 62 → 74 → 68. The manual shows it for user B,
+the IP command summary lists `TRI` for user A only.
+
+The volume target of the integration assumes ±1 per step and would not work
+with Tri-Ref enabled. Not supported; not tested on a device.
 
 ## Known open questions
 

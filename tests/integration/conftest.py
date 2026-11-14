@@ -17,6 +17,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.realiser_a16.api import A16DeviceInfo
 from custom_components.realiser_a16.const import DOMAIN
 from custom_components.realiser_a16.pya16 import (
+    A16Client,
     A16ConnectionError,
     A16State,
     A16Stats,
@@ -38,7 +39,10 @@ INITIAL_PACKETS = [
     b"PWR=ON",
     b"A16FW=2.17 Jan 26 2024\x00A16SN=" + SERIAL.encode(),
     b"AUR=Listener 1\x00PA=06\x00VA=64\x00AROOM=Room 1\x00ANAME=Subject 1"
-    b"\x00ASPKR=12.1.10\x00IN=HDMI-1\x00HTMODE=Gyro\x00USER=DUAL",
+    b"\x00ASPKR=12.1.10\x00AQFILE=HD800S Subject 1  \x00AQNAME=Subject 1"
+    b"\x00AQDATE=19:09 29/04/2023\x00AQTYPE=flatEQ\x00AQMOD=HD800S  \x00ATACT=ON"
+    b"\x00IN=HDMI-1\x00DEC=PCM 2ch\x00LM=2.1.0\x00UMIX=OFF\x00HTMODE=Gyro"
+    b"\x00LEG=OFF\x00USER=DUAL",
     b"BUR=Listener 2\x00PB=07\x00VB=65\x00BROOM=Room B7\x00BNAME=Subject B7"
     b"\x00BSPKR=9.1.6",
     b"A00\x00A01\x00ALL=SOLO\x00TEST=OFF\x00MODE=SVS",
@@ -64,6 +68,9 @@ class MockA16Client:
         self.ignore_steps = 0  # next N volume steps change nothing
         self.device_muted = {"a": False, "b": False}
         self.device_preset_b = 7
+        self.device_test = "OFF"
+        self.device_ht = "OFF"
+        self.drop_codes: dict[str, int] = {}  # code -> ignore the next N
         self.response_timeout = 5.0
         self.min_command_interval = 1.2
         self.min_step_interval = 2.5
@@ -115,6 +122,9 @@ class MockA16Client:
         self.stats.commands_sent += 1
         if code in self.timeout_codes:
             raise A16TimeoutError(f"No answer to command {code}")
+        if self.drop_codes.get(code, 0) > 0:  # ignored by the device
+            self.drop_codes[code] -= 1
+            raise A16TimeoutError(f"No answer to command {code}")
         value = int(code, 16)
         if code == "2c":
             self.push(b"PWR=BOOT")
@@ -151,6 +161,16 @@ class MockA16Client:
             # Like the device: only PB= is answered, no room/subject of B.
             self.device_preset_b = value - 0x8F
             self.push(f"PB={self.device_preset_b:02d}".encode())
+        elif code in ("4d", "5e"):
+            self.push(b"MODE=SVS" if code == "4d" else b"MODE=MIX")
+        elif code == "08":
+            self.device_test = "OFF" if self.device_test == "LOOP" else "LOOP"
+            self.push(f"TEST={self.device_test}".encode())
+        elif code == "42":
+            self.device_ht = "OFF" if self.device_ht == "ACTIVE" else "ACTIVE"
+            self.push(f"HT={self.device_ht}".encode())
+        elif code == "af":
+            self.push(f"A00\x00ALL=SOLO\x00TEST={self.device_test}".encode())
         elif code == "a0":
             n = self.device_preset_b
             fields = ["BUR=Listener 2", f"PB={n:02d}", f"BROOM=Room B{n}"]
@@ -176,6 +196,13 @@ class MockA16Client:
 
     async def volume_down(self, user: str) -> None:
         await self.send_command(VOLUME_DOWN[user])
+
+    # The real toggle logic only uses send_command and state.
+    set_output = A16Client.set_output
+    set_test_signal = A16Client.set_test_signal
+    set_head_tracking = A16Client.set_head_tracking
+    press_key = A16Client.press_key
+    _set_toggle = A16Client._set_toggle
 
     async def step_volume(self, user: str, up: bool) -> int | None:
         before = self.state.user(user).volume

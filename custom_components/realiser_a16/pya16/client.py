@@ -22,13 +22,18 @@ from .parser import Packet, StreamParser
 from .protocol import (
     CMD_POWER_ON,
     CMD_POWER_STATUS,
+    CMD_SPEAKER_STATUS,
     CMD_STANDBY,
     DEFAULT_PORT,
+    HT_TOGGLE,
     INFO_QUERY,
     IR_KEYS,
     MUTE_TOGGLE,
+    OUTPUT_HEADPHONES,
+    OUTPUT_SPEAKERS,
     REFRESH_COMMANDS,
     SOURCES,
+    TEST_TOGGLE,
     VOLUME_DOWN,
     VOLUME_MAX,
     VOLUME_MIN,
@@ -407,6 +412,63 @@ class A16Client:
             return False
         finally:
             remove()
+
+    async def set_output(self, speakers: bool) -> None:
+        """Switch to headphones (SVS, ``4d``) or speakers (AV/MIX, ``5e``).
+
+        Both keys set the mode instead of toggling it (FW 2.17), so they are
+        idempotent and retried like queries.
+        """
+        await self.send_command(OUTPUT_SPEAKERS if speakers else OUTPUT_HEADPHONES)
+
+    async def set_test_signal(self, on: bool) -> None:
+        """Switch the internal test loop on or off (toggle ``08``, query ``af``)."""
+        await self._set_toggle(
+            TEST_TOGGLE, "test", "LOOP" if on else "OFF", CMD_SPEAKER_STATUS
+        )
+
+    async def set_head_tracking(self, on: bool) -> None:
+        """Switch head tracking on or off (toggle ``42``, no query command).
+
+        The state is only known from the answer to the last toggle.
+        """
+        await self._set_toggle(HT_TOGGLE, "head_tracking", "ACTIVE" if on else "OFF")
+
+    async def _set_toggle(
+        self, code: str, attr: str, target: str, query: str | None = None
+    ) -> None:
+        """Bring a toggle to ``target`` without blind repeats.
+
+        Observed on FW 2.17 for TEST, HT and mute: a toggle the A16 ignores
+        gets no answer at all, an executed toggle answers with the new state.
+        So nothing is sent if the known state already matches; an unanswered
+        toggle is checked with ``query`` (if there is one) and sent once
+        more; an answer with the wrong state (the state was unknown) is
+        corrected by toggling again. Raises A16TimeoutError if the target is
+        not confirmed; without a query the state is then unknown.
+        """
+        if getattr(self.state, attr) is None and query is not None:
+            with contextlib.suppress(A16TimeoutError):
+                await self.send_command(query)
+        unanswered = 0
+        for _ in range(3):
+            if getattr(self.state, attr) == target:
+                return
+            try:
+                await self.send_command(code)
+            except A16TimeoutError:
+                unanswered += 1
+                if query is not None:
+                    with contextlib.suppress(A16TimeoutError):
+                        await self.send_command(query)
+                if unanswered > 1:
+                    break
+                _LOGGER.debug("Toggle %s not answered, sending once more", code)
+        if getattr(self.state, attr) == target:
+            return
+        if query is None:
+            setattr(self.state, attr, None)
+        raise A16TimeoutError(f"Command {code} did not reach {target}")
 
     async def press_key(self, key: str) -> None:
         """Send an IR remote key by name (see protocol.IR_KEYS)."""
