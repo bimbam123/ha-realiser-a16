@@ -78,6 +78,33 @@ def test_mute_and_unknown_fields():
     assert s.extra["FOO"] == "1"
 
 
+def test_standby_and_boot_reset_mute():
+    """Mute does not survive standby: after power on the A16 is always loud."""
+    s = A16State()
+    s.apply_packet(parse_packet(b"PWR=ON"))
+    s.apply_packet(parse_packet(b"MUTEA=MUTE"))
+    s.apply_packet(parse_packet(b"MUTEB=MUTE"))
+    assert s.apply_packet(parse_packet(b"PWR=STANDBY")) == {
+        "power",
+        "user_a.muted",
+        "user_b.muted",
+    }
+    assert s.user_a.muted is False
+    assert s.user_b.muted is False
+
+
+def test_boot_resets_unknown_mute_and_keeps_it_on_power_on():
+    s = A16State()
+    s.apply_packet(parse_packet(b"PWR=BOOT"))
+    assert s.user_a.muted is False  # also from unknown
+    s.apply_packet(parse_packet(b"MUTEA=MUTE"))
+    assert s.apply_packet(parse_packet(b"PWR=ON")) == {"power"}
+    assert s.user_a.muted is True
+    # repeated keepalive answers in standby change nothing
+    s.apply_packet(parse_packet(b"PWR=STANDBY"))
+    assert s.apply_packet(parse_packet(b"PWR=STANDBY")) == set()
+
+
 def test_invalid_number_is_ignored():
     s = A16State()
     s.apply_packet(parse_packet(b"VA=abc"))

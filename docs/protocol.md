@@ -444,6 +444,19 @@ Spot check of Table 3 against the device (user A, layout `12.1.10`):
 - `pya16` therefore treats a packet with `AUR`/`BUR`/`AROOM`/`BROOM` as an
   info block, which does not confirm other commands
 
+**Cold start of 2026-11-15** (`2c` from Home Assistant, read from the HA
+state via ha-mcp, no raw capture):
+- the power state showed `ON` after ~45 s, the connection was reset at ~62 s,
+  ready after the reconnect (~65 s). The `ON` before the reset contradicts the
+  measurement above (no answers at all until the reset) and is
+  **(unverified)**: the HA state does not show which field the A16 sent.
+  Either way the A16 is only ready after the reconnect.
+- **Mute does not survive standby:** after power on both users are always
+  unmuted. `pya16` sets `muted` of both users to `False` when the power state
+  becomes `STANDBY` or `BOOT`. Before that fix a mute from the session before
+  the standby stayed in the state, and a later "mute" sent nothing because
+  the state already matched.
+
 Why the periodic pushes happen at some times and not at others is unknown
 (maybe linked to the display/menu state or head tracking). Clients must not
 rely on them.
