@@ -179,6 +179,22 @@ async def test_mute_without_answer_becomes_unknown(hass, setup_integration):
     assert "is_volume_muted" not in hass.states.get(PLAYER_A).attributes
 
 
+async def test_mute_after_standby_and_boot_is_sent(hass, setup_integration):
+    """A mute from before the standby must not block muting after power on."""
+    client = setup_integration
+    await _call(hass, "media_player", "volume_mute", PLAYER_A, is_volume_muted=True)
+    assert client.sent == ["32"]
+    # standby and cold start: the A16 forgets mute and comes up loud
+    client.device_muted["a"] = False
+    for power in (b"PWR=STANDBY", b"PWR=BOOT", b"PWR=ON"):
+        client.push(power)
+        await hass.async_block_till_done()
+    assert hass.states.get(PLAYER_A).attributes["is_volume_muted"] is False
+    await _call(hass, "media_player", "volume_mute", PLAYER_A, is_volume_muted=True)
+    assert client.sent == ["32", "32"]
+    assert hass.states.get(PLAYER_A).attributes["is_volume_muted"] is True
+
+
 async def test_mute_pushed_from_remote(hass, setup_integration):
     client = setup_integration
     client.push(b"MUTEB=MUTE")
@@ -225,9 +241,9 @@ async def test_preset_select_invalid(hass, setup_integration):
 
 async def test_sensors(hass, setup_integration):
     client = setup_integration
-    assert hass.states.get("sensor.realiser_a16_mode").state == "svs"
+    assert hass.states.get("sensor.realiser_a16_rendering_mode").state == "svs"
     assert hass.states.get("sensor.realiser_a16_head_tracking_mode").state == "Gyro"
     assert hass.states.get("sensor.realiser_a16_firmware").state == "2.17 Jan 26 2024"
     client.push(b"MODE=AV")
     await hass.async_block_till_done()
-    assert hass.states.get("sensor.realiser_a16_mode").state == "av"
+    assert hass.states.get("sensor.realiser_a16_rendering_mode").state == "av"

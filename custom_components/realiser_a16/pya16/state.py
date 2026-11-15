@@ -115,6 +115,12 @@ class A16State:
         if key in _GLOBAL:
             attr, conv = _GLOBAL[key]
             self._set(self, attr, conv(value), changed, "")
+            if key == "PWR" and self.power in _NOT_RUNNING and "power" in changed:
+                # Mute does not survive standby: after power on both users are
+                # always unmuted. Without this a mute from before the standby
+                # would stay in the state, and set_mute would send nothing.
+                for user in ("a", "b"):
+                    self._set(self.user(user), "muted", False, changed, f"user_{user}.")
             return
         if key in _FIRMWARE:
             self._set(self.firmware, _FIRMWARE[key], _text(value), changed, "firmware.")
@@ -191,6 +197,14 @@ def _on_off(value: str) -> bool | None:
     return None
 
 
+def _tactile(value: str) -> bool | None:
+    """ATACT/BTACT: ON, or empty when the room has no tactile output.
+
+    The A16 reports "off" as an empty field; OFF never showed up on FW 2.17.
+    """
+    return False if not value.strip() else _on_off(value)
+
+
 _GLOBAL: dict[str, tuple[str, Callable[[str], object]]] = {
     "PWR": ("power", _text),
     "IN": ("source", _text),
@@ -207,6 +221,8 @@ _GLOBAL: dict[str, tuple[str, Callable[[str], object]]] = {
     "PAGE": ("page", _int),
     "KEY": ("last_key", _text),
 }
+
+_NOT_RUNNING = frozenset({"STANDBY", "BOOT"})
 
 _FIRMWARE = {
     "A16FW": "a16",
@@ -226,7 +242,7 @@ _USER_FIELDS: dict[str, tuple[str, Callable[[str], object]]] = {
     "QDATE": ("hpeq_date", _text),
     "QTYPE": ("hpeq_type", _text),
     "QMOD": ("headphone", _text),
-    "TACT": ("tactile", _on_off),
+    "TACT": ("tactile", _tactile),
     "HT": ("ht_angle", _text),
 }
 

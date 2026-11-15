@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import importlib.util
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -71,6 +72,10 @@ class FakeA16:
         self.push_interval = push_interval
         self.volume = {"a": 64, "b": 65}
         self.muted = {"a": False, "b": False}
+        # TEST/HT toggles and output mode (4d/5e set the mode, FW 2.17)
+        self.test = "OFF"
+        self.ht = "OFF"
+        self.mode = "SVS"
         self.responses: dict[str, bytes] = {
             "2e": b"PWR=ON\x00\r",
             "2c": b"PWR=ON\x00\r",
@@ -146,6 +151,20 @@ class FakeA16:
             self.muted[user] = not self.muted[user]
             state = "MUTE" if self.muted[user] else "OFF"
             return f"MUTE{user.upper()}={state}".encode() + TERM
+        if code == "08":
+            self.test = "OFF" if self.test == "LOOP" else "LOOP"
+            return f"TEST={self.test}".encode() + TERM
+        if code == "42":
+            self.ht = "OFF" if self.ht == "ACTIVE" else "ACTIVE"
+            return f"HT={self.ht}".encode() + TERM
+        if code in ("4d", "5e"):
+            self.mode = "SVS" if code == "4d" else "MIX"
+            return f"MODE={self.mode}".encode() + TERM
+        if code == "af":
+            block = re.sub(
+                rb"TEST=[A-Z]*", f"TEST={self.test}".encode(), self.responses["af"]
+            )
+            return re.sub(rb"MODE=[A-Z]*", f"MODE={self.mode}".encode(), block)
         return self.responses.get(code)
 
     async def _handle(self, reader, writer) -> None:

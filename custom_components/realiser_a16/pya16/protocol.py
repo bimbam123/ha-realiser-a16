@@ -111,6 +111,13 @@ IR_KEYS: Final[dict[str, str]] = {
 VOLUME_UP: Final[dict[User, str]] = {"a": "30", "b": "33"}
 VOLUME_DOWN: Final[dict[User, str]] = {"a": "31", "b": "34"}
 MUTE_TOGGLE: Final[dict[User, str]] = {"a": "32", "b": "35"}
+# Output mode. On FW 2.17 both keys set the mode instead of toggling: 4d gives
+# MODE=SVS, 5e gives MODE=MIX (or AV, depending on the preset) and stays there.
+OUTPUT_HEADPHONES: Final = "4d"
+OUTPUT_SPEAKERS: Final = "5e"
+# Real toggles; an ignored toggle gets no answer at all (FW 2.17).
+TEST_TOGGLE: Final = "08"  # TEST=LOOP / TEST=OFF, queryable with af
+HT_TOGGLE: Final = "42"  # HT=ACTIVE / HT=OFF, no query command
 VOLUME_QUERY: Final[dict[User, str]] = {"a": CMD_USER_A_VOLUME, "b": CMD_USER_B_VOLUME}
 INFO_QUERY: Final[dict[User, str]] = {"a": CMD_USER_A_INFO, "b": CMD_USER_B_INFO}
 
@@ -194,8 +201,9 @@ def speaker_command(speaker_id: int) -> str:
 def is_idempotent(code: str) -> bool:
     """True if sending ``code`` twice has the same effect as sending it once.
 
-    Queries, power on/standby, source and preset selection are; IR keys
-    (toggles, volume steps, menu navigation) and speaker selection are not.
+    Queries, power on/standby, source and preset selection and the output
+    keys headphone/speaker (4d/5e) are; other IR keys (toggles, volume steps,
+    menu navigation) and speaker selection are not.
     """
     code = normalize_code(code)
     value = int(code, 16)
@@ -205,6 +213,7 @@ def is_idempotent(code: str) -> bool:
         or 0x70 <= value <= 0x7F
         or 0x90 <= value <= 0x9F
         or code in (CMD_SPEAKER_VISIBILITY, CMD_SPEAKER_STATUS)
+        or code in (OUTPUT_HEADPHONES, OUTPUT_SPEAKERS)
     ) and code != CMD_RESET_METERS
 
 

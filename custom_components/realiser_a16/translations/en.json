@@ -37,6 +37,14 @@
     }
   },
   "entity": {
+    "binary_sensor": {
+      "tactile_a": {
+        "name": "Tactile A"
+      },
+      "tactile_b": {
+        "name": "Tactile B"
+      }
+    },
     "media_player": {
       "user_a": {
         "name": "User A"
@@ -51,15 +59,25 @@
       },
       "preset_b": {
         "name": "Preset B"
+      },
+      "source": {
+        "name": "Source"
+      },
+      "rendering": {
+        "name": "Rendering",
+        "state": {
+          "svs": "SVS headphone",
+          "av_mix": "AV / Stereo mixdown"
+        }
       }
     },
     "sensor": {
       "mode": {
-        "name": "Mode",
+        "name": "Rendering mode",
         "state": {
-          "svs": "SVS (headphones)",
-          "av": "AV (speakers)",
-          "mix": "Mix"
+          "svs": "SVS headphone",
+          "av": "AV loudspeaker",
+          "mix": "Stereo mixdown"
         }
       },
       "ht_mode": {
@@ -67,6 +85,65 @@
       },
       "firmware": {
         "name": "Firmware"
+      },
+      "decoder": {
+        "name": "Decoder"
+      },
+      "listening_mode": {
+        "name": "Listening mode"
+      },
+      "upmixer": {
+        "name": "Upmixer"
+      },
+      "legacy": {
+        "name": "Legacy decoding"
+      },
+      "user_mode": {
+        "name": "Users"
+      },
+      "hpeq_a": {
+        "name": "HPEQ A",
+        "state_attributes": {
+          "subject": {
+            "name": "Subject"
+          },
+          "type": {
+            "name": "Filter type"
+          },
+          "date": {
+            "name": "Date"
+          },
+          "headphone": {
+            "name": "Headphone"
+          }
+        }
+      },
+      "hpeq_b": {
+        "name": "HPEQ B",
+        "state_attributes": {
+          "subject": {
+            "name": "Subject"
+          },
+          "type": {
+            "name": "Filter type"
+          },
+          "date": {
+            "name": "Date"
+          },
+          "headphone": {
+            "name": "Headphone"
+          }
+        }
+      }
+    },
+    "switch": {
+      "test_signal": {
+        "name": "Test signal"
+      }
+    },
+    "button": {
+      "ht_display": {
+        "name": "HT display"
       }
     }
   },

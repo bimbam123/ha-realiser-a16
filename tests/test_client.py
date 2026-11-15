@@ -307,9 +307,9 @@ async def test_toggle_is_not_retried(fake_a16):
 def test_idempotent_classification():
     from pya16.protocol import is_idempotent
 
-    for code in ("2e", "2c", "2d", "64", "80", "37", "21", "75", "9f"):
+    for code in ("2e", "2c", "2d", "64", "80", "37", "21", "75", "9f", "4d", "5e"):
         assert is_idempotent(code), code
-    for code in ("30", "31", "32", "1a", "43", "11", "b1", "38"):
+    for code in ("30", "31", "32", "1a", "43", "11", "b1", "38", "08", "42"):
         assert not is_idempotent(code), code
 
 
@@ -528,5 +528,111 @@ async def test_stats_are_counted(fake_a16):
         assert stats["timeouts"] == 1
         assert stats["volume_steps_lost"] == 1
         assert stats["response_time_s"]["samples"] == 3
+    finally:
+        await client.stop()
+
+
+# --- output mode and toggles (TEST, HT) ---
+
+
+async def _connected(server, **kw) -> A16Client:
+    client = _client(server, **kw)
+    await client.start()
+    await client.wait_connected(2)
+    await _wait_for(lambda: client.state.user_a.preset is not None)
+    return client
+
+
+async def test_set_output_sets_mode(fake_a16):
+    client = await _connected(fake_a16)
+    try:
+        await client.set_output(speakers=True)
+        assert client.state.mode == "MIX"
+        await client.set_output(speakers=True)  # sets, does not toggle
+        assert client.state.mode == "MIX"
+        await client.set_output(speakers=False)
+        assert client.state.mode == "SVS"
+        assert fake_a16.received[-3:] == ["5e", "5e", "4d"]
+    finally:
+        await client.stop()
+
+
+async def test_dropped_output_key_is_retried(fake_a16):
+    client = await _connected(fake_a16)
+    try:
+        fake_a16.drop_next["5e"] = 1
+        await client.set_output(speakers=True)
+        assert client.state.mode == "MIX"
+        assert fake_a16.received.count("5e") == 2
+    finally:
+        await client.stop()
+
+
+async def test_test_signal_queries_state_first(fake_a16):
+    client = await _connected(fake_a16)
+    try:
+        assert client.state.test is None
+        await client.set_test_signal(True)
+        assert client.state.test == "LOOP"
+        assert fake_a16.received[-2:] == ["af", "08"]
+        await client.set_test_signal(True)  # already on: nothing sent
+        assert fake_a16.received.count("08") == 1
+        await client.set_test_signal(False)
+        assert fake_a16.test == "OFF"
+        assert fake_a16.received.count("08") == 2
+    finally:
+        await client.stop()
+
+
+async def test_ignored_test_toggle_is_checked_and_sent_again(fake_a16):
+    client = await _connected(fake_a16)
+    try:
+        await client.send_command("af")
+        fake_a16.drop_next["08"] = 1  # ignored: no answer, no change
+        await client.set_test_signal(True)
+        assert fake_a16.test == "LOOP"
+        assert fake_a16.received[-3:] == ["08", "af", "08"]
+        assert fake_a16.received.count("08") == 2
+    finally:
+        await client.stop()
+
+
+async def test_lost_test_answer_is_not_toggled_back(fake_a16):
+    client = await _connected(fake_a16)
+    try:
+        await client.send_command("af")
+        fake_a16.lose_answer_next["08"] = 1  # executed, answer lost
+        await client.set_test_signal(True)
+        assert fake_a16.test == "LOOP"
+        assert fake_a16.received.count("08") == 1  # af showed it was applied
+    finally:
+        await client.stop()
+
+
+async def test_head_tracking_unknown_state_is_corrected(fake_a16):
+    client = await _connected(fake_a16)
+    try:
+        fake_a16.ht = "ACTIVE"
+        assert client.state.head_tracking is None
+        await client.set_head_tracking(True)  # 42 -> OFF, so toggle again
+        assert client.state.head_tracking == "ACTIVE"
+        assert fake_a16.ht == "ACTIVE"
+        assert fake_a16.received.count("42") == 2
+        await client.set_head_tracking(True)
+        assert fake_a16.received.count("42") == 2
+    finally:
+        await client.stop()
+
+
+async def test_head_tracking_ignored_twice_becomes_unknown(fake_a16):
+    client = await _connected(fake_a16)
+    try:
+        await client.set_head_tracking(True)
+        fake_a16.drop_next["42"] = 2
+        with pytest.raises(A16TimeoutError):
+            await client.set_head_tracking(False)
+        assert client.state.head_tracking is None
+        assert fake_a16.received.count("42") == 3
+        assert fake_a16.ht == "ACTIVE"
     finally:
         await client.stop()
